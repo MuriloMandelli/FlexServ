@@ -1,7 +1,7 @@
 # FlexServ
 FlexServ é um sistema web para gestão de Ordens de Serviço da TecFlex (aparelhos para máquinas de costura industriais e domésticas), substituindo o controle em papel por um fluxo digital de abertura, acompanhamento e consulta de OS, vinculando clientes, vendedores, lojas e os itens/serviços de cada atendimento.
 
-- **Sistema:** https://flexserv-eight.vercel.app
+- **Sistema:** https://tecflex.vercel.app
 - **API:** https://flexserv-api.vercel.app
 - **Documentação técnica completa (PDF):** [docs/FlexServ-Documentacao-Tecnica.pdf](docs/FlexServ-Documentacao-Tecnica.pdf)
 
