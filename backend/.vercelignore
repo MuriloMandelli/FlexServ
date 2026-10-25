@@ -1,0 +1,7 @@
+# Nao enviar para a Vercel: segredos ficam nas variaveis de ambiente do painel
+.env
+node_modules
+drizzle
+.env.local
+.vercel
+configurar-vercel.js

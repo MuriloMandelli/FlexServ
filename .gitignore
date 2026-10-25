@@ -1,0 +1,10 @@
+node_modules
+dist
+.env
+drizzle
+
+.claude/
+.vercel
+
+# Contexto de trabalho com o Claude Code (fica so no PC)
+CONTEXTO.md
