@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/* Identidade visual: azul-marinho e azul-ceu da TecFlex, em tema escuro */
+@theme {
+  --font-sans: "Archivo", system-ui, sans-serif;
+
+  --color-fundo: #0b0c22;
+  --color-superficie: #15163a;
+  --color-superficie-2: #1e2050;
+  --color-borda: #2a2c5e;
+  --color-texto: #f2f3fa;
+  --color-suave: #a3a6c8;
+  --color-primaria: #5ab4ea;
+  --color-primaria-forte: #3d9fda;
+  --color-marinho: #2e2a78;
+  --color-perigo: #f07178;
+  --color-sucesso: #34d399;
+}
+
+html,
+body {
+  background-color: var(--color-fundo);
+  color: var(--color-texto);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100dvh;
+  background-image: radial-gradient(1200px 500px at 0% -10%, rgb(46 42 120 / 0.35), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Barra de rolagem discreta */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-borda) transparent;
+}
+
+/* Datas e horas com o calendario no tema escuro */
+input[type="date"],
+input[type="datetime-local"] {
+  color-scheme: dark;
+}
