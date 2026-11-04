@@ -117,15 +117,16 @@ Todas as rotas, exceto `/login` e `/health`, exigem o header `Authorization: Bea
 ### Regras da OS
 
 - Os status são configuráveis (nome, cor, ordem), mas cada um pertence a uma **fase** fixa: `aberta`, `execucao`, `concluida`, `entregue` ou `cancelada`. As regras olham a fase (`backend/src/services/os.ts`).
-- A OS só sai da fase aberta depois de **aprovada** pelo cliente e pelo técnico responsável (assinatura eletrônica, ver abaixo). Se os itens ou o desconto mudarem antes de iniciar, a aprovação cai, os links antigos param de funcionar e é preciso assinar de novo.
+- A OS só sai da fase aberta depois de **aprovada** pelo cliente e pelo técnico responsável (assinatura eletrônica, ver abaixo).
+- **Orçamento travado após o envio:** itens e dados do atendimento só podem ser alterados enquanto a OS está aberta e ainda não foi enviada para aprovação (a API recusa com 409). Depois do envio, só "Valores e pagamento" (desconto, forma e situação) continua editável.
 - O técnico responsável pode ser diferente de quem abriu a OS (ex.: o atendimento abre e escolhe o técnico).
 - A máquina é opcional: a maioria dos serviços envolve mais de uma máquina.
 - O valor é sempre calculado pelo back-end: itens (quantidade x preço congelado) menos o desconto.
 - O preço (e o custo) do item fica congelado na OS: mudar o cadastro não altera OS antigas.
 - Itens de **valor variável** (mão de obra, transporte, combustível...) têm o preço informado na hora de lançar na OS ou na venda; o valor do cadastro é só sugestão. Itens de valor fixo sempre usam o preço do cadastro (o back-end ignora qualquer valor enviado pelo front). Uma OS com item variável sem valor não pode ser enviada para aprovação.
-- O defeito relatado é opcional na abertura e pode ser preenchido depois.
+- O "Serviço a ser realizado" é um campo único (substituiu defeito relatado, diagnóstico e serviço executado), opcional na abertura.
 - Em atendimento em campo, a previsão de entrega herda a data da visita (pode ser alterada).
-- Itens só mudam nas fases aberta e em execução. Não é possível concluir sem itens nem entregar sem concluir. Entregue e cancelada são finais.
+- Não é possível concluir sem itens nem entregar sem concluir. Entregue e cancelada são finais.
 - Avisos ao cliente pelo WhatsApp usam o link `wa.me` (sem API paga) e ficam registrados com o "Já avisei".
 
 ### Aprovação eletrônica

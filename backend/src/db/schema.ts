@@ -131,9 +131,7 @@ export const servico = pgTable("servico", {
   dataVisita: timestamp("data_visita"),
 
   // Dados do atendimento
-  defeitoRelatado: text("defeito_relatado"), // opcional: pode ser preenchido depois
-  diagnostico: text("diagnostico"),
-  servicoExecutado: text("servico_executado"),
+  descricaoServico: text("descricao_servico"), // servico a ser realizado (opcional na abertura)
   observacoes: text("observacoes"),
   garantiaDias: integer("garantia_dias"),
 
@@ -168,6 +166,11 @@ export const servico = pgTable("servico", {
   // Legado: assinaturas desenhadas da versao anterior (nao usadas mais)
   assinaturaCliente: text("assinatura_cliente"),
   assinaturaTecnico: text("assinatura_tecnico"),
+  // Legado: os tres textos viraram um so (descricaoServico). Ficam ate a
+  // versao nova ser publicada, para nao quebrar a que esta no ar.
+  defeitoRelatado: text("defeito_relatado"),
+  diagnostico: text("diagnostico"),
+  servicoExecutado: text("servico_executado"),
 
   dataAbertura: timestamp("data_abertura").defaultNow().notNull(),
   previsaoEntrega: date("previsao_entrega"),

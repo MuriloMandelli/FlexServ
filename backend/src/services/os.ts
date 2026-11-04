@@ -15,9 +15,12 @@ export function faseFinal(fase: Fase) {
   return fase === "entregue" || fase === "cancelada";
 }
 
-// Itens (pecas e mao de obra) so mudam antes de concluir
-export function itensEditaveis(fase: Fase) {
-  return fase === "aberta" || fase === "execucao";
+// O orcamento (itens e dados do atendimento) so pode ser mudado enquanto a OS
+// esta aberta e ainda nao foi enviada para aprovacao. Depois do envio ele fica
+// travado: e exatamente o que cliente e tecnico leram e assinaram.
+// So "Valores e pagamento" (desconto, forma e situacao) continua editavel.
+export function orcamentoEditavel(os: { fase: Fase; enviadaParaAprovacao: boolean }) {
+  return os.fase === "aberta" && !os.enviadaParaAprovacao;
 }
 
 type SituacaoOS = { fase: Fase; aprovada: boolean; quantidadeItens: number };
@@ -59,49 +62,6 @@ export async function recalcularTotal(executor: Executor, servicoId: number) {
     .set({
       valorItens: somaItens,
       valorTotal: sql`greatest(${somaItens} - ${servico.desconto}, 0)`,
-    })
-    .where(eq(servico.id, servicoId));
-}
-
-// Se o valor muda enquanto a OS ainda esta aberta, a aprovacao anterior
-// deixa de valer: os links antigos param de funcionar e cliente e tecnico
-// precisam aceitar de novo o valor novo.
-export async function invalidarAprovacao(executor: Executor, servicoId: number) {
-  await executor
-    .update(servico)
-    .set({
-      termosAprovacao: null,
-      tokenCliente: null,
-      tokenTecnico: null,
-      aceiteClienteEm: null,
-      aceiteClienteNome: null,
-      aceiteClienteIp: null,
-      aceiteClienteDispositivo: null,
-      aceiteTecnicoEm: null,
-      aceiteTecnicoNome: null,
-      aceiteTecnicoIp: null,
-      aceiteTecnicoDispositivo: null,
-      aceiteTecnicoMeio: null,
-      aprovadoEm: null,
-      aprovadoPorNome: null,
-    })
-    .where(eq(servico.id, servicoId));
-}
-
-// Trocar o tecnico responsavel antes de iniciar: so o aceite do tecnico cai
-// (o do cliente continua valendo, o valor nao mudou)
-export async function invalidarAceiteTecnico(executor: Executor, servicoId: number) {
-  await executor
-    .update(servico)
-    .set({
-      tokenTecnico: null,
-      aceiteTecnicoEm: null,
-      aceiteTecnicoNome: null,
-      aceiteTecnicoIp: null,
-      aceiteTecnicoDispositivo: null,
-      aceiteTecnicoMeio: null,
-      aprovadoEm: null,
-      aprovadoPorNome: null,
     })
     .where(eq(servico.id, servicoId));
 }

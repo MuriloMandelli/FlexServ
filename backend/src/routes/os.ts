@@ -27,9 +27,7 @@ import {
 import {
   faseFinal,
   FASES,
-  invalidarAceiteTecnico,
-  invalidarAprovacao,
-  itensEditaveis,
+  orcamentoEditavel,
   recalcularTotal,
   validarTrocaDeFase,
 } from "../services/os";
@@ -102,9 +100,7 @@ const atendimentoSchema = z
     tipoAtendimento: tipoAtendimentoSchema,
     enderecoAtendimento: textoOpcional(255),
     dataVisita: dataHoraOpcional,
-    defeitoRelatado: textoOpcional(2000),
-    diagnostico: textoOpcional(2000),
-    servicoExecutado: textoOpcional(2000),
+    descricaoServico: textoOpcional(2000),
     observacoes: textoOpcional(2000),
     previsaoEntrega: dataOpcional,
     garantiaDias: garantiaSchema,
@@ -120,7 +116,7 @@ const abrirSchema = z
     tipoAtendimento: tipoAtendimentoSchema.default("oficina"),
     enderecoAtendimento: textoOpcional(255),
     dataVisita: dataHoraOpcional,
-    defeitoRelatado: textoOpcional(2000),
+    descricaoServico: textoOpcional(2000),
     observacoes: textoOpcional(2000),
     previsaoEntrega: dataOpcional,
     garantiaDias: garantiaSchema,
@@ -139,8 +135,15 @@ const colunasStatus = { id: statusOs.id, nome: statusOs.nome, cor: statusOs.cor,
 
 // Monta a OS completa: dados, cliente, maquina, vendedor, tecnico, status, itens e avisos
 async function carregarOS(id: number) {
-  // As assinaturas desenhadas (legado) ficam de fora da resposta
-  const { assinaturaCliente: _c, assinaturaTecnico: _t, ...colunasServico } = getTableColumns(servico);
+  // Colunas legadas (assinaturas desenhadas e os textos antigos) ficam de fora
+  const {
+    assinaturaCliente: _ac,
+    assinaturaTecnico: _at,
+    defeitoRelatado: _d,
+    diagnostico: _g,
+    servicoExecutado: _s,
+    ...colunasServico
+  } = getTableColumns(servico);
   const [os] = await db
     .select({
       os: colunasServico,
@@ -209,7 +212,8 @@ async function carregarOS(id: number) {
     avisos,
     // Ajuda o front a saber o que mostrar
     aprovada: os.os.aprovadoEm !== null,
-    itensEditaveis: itensEditaveis(fase),
+    // Depois de enviada para aprovacao, itens e atendimento ficam travados
+    orcamentoEditavel: orcamentoEditavel({ fase, enviadaParaAprovacao: os.os.tokenCliente !== null || os.os.aprovadoEm !== null }),
     finalizada: faseFinal(fase),
   };
 }
@@ -239,7 +243,7 @@ router.get("/os", async (req, res) => {
         aprovada: sql<boolean>`${servico.aprovadoEm} is not null`,
         dataAbertura: servico.dataAbertura,
         previsaoEntrega: servico.previsaoEntrega,
-        defeitoRelatado: servico.defeitoRelatado,
+        descricaoServico: servico.descricaoServico,
         clienteId: cliente.id,
         clienteNome: cliente.nome,
         clienteTelefone: cliente.telefone,
@@ -362,19 +366,16 @@ router.post("/os", async (req, res) => {
   }
 });
 
-// PUT /os/:id -> dados do atendimento (oficina/campo, defeito, diagnostico...)
+// PUT /os/:id -> dados do atendimento (oficina/campo, servico, previsao...).
+// So enquanto a OS nao foi enviada para aprovacao.
 router.put("/os/:id", async (req, res) => {
   const id = lerId(req.params.id);
   if (!id) return res.status(400).json({ erro: "Id inválido." });
 
   try {
     const dados = atendimentoSchema.parse(req.body);
-    const situacao = await buscarSituacao(id);
-    if (!situacao) return res.status(404).json({ erro: "OS não encontrada." });
-    // Depois de entregue ou cancelada, a OS vira registro historico
-    if (faseFinal(situacao.fase)) {
-      return res.status(409).json({ erro: "OS entregue ou cancelada não pode ser alterada." });
-    }
+    const situacao = await verificarOrcamentoEditavel(id);
+    if ("erro" in situacao) return res.status(situacao.codigo).json({ erro: situacao.erro });
 
     const { tecnicoId, ...atendimento } = dados;
     const tecnicoMudou = tecnicoId !== null && tecnicoId !== situacao.tecnicoId;
@@ -382,19 +383,15 @@ router.put("/os/:id", async (req, res) => {
       return res.status(400).json({ erro: "Técnico responsável não encontrado." });
     }
 
-    await db.transaction(async (tx) => {
-      await tx
-        .update(servico)
-        .set({
-          ...atendimento,
-          ...(tecnicoMudou ? { tecnicoId } : {}),
-          enderecoAtendimento: dados.tipoAtendimento === "campo" ? dados.enderecoAtendimento : null,
-          dataVisita: dados.tipoAtendimento === "campo" ? dados.dataVisita : null,
-        })
-        .where(eq(servico.id, id));
-      // Outro tecnico antes de iniciar: ele precisa dar o proprio aceite
-      if (tecnicoMudou && situacao.fase === "aberta") await invalidarAceiteTecnico(tx, id);
-    });
+    await db
+      .update(servico)
+      .set({
+        ...atendimento,
+        ...(tecnicoMudou ? { tecnicoId } : {}),
+        enderecoAtendimento: dados.tipoAtendimento === "campo" ? dados.enderecoAtendimento : null,
+        dataVisita: dados.tipoAtendimento === "campo" ? dados.dataVisita : null,
+      })
+      .where(eq(servico.id, id));
     res.json(await carregarOS(id));
   } catch (err) {
     responderErro(res, err);
@@ -434,7 +431,6 @@ router.put("/os/:id/pagamento", async (req, res) => {
         })
         .where(eq(servico.id, id));
       await recalcularTotal(tx, id);
-      if (descontoMudou && situacao.fase === "aberta") await invalidarAprovacao(tx, id);
     });
     res.json(await carregarOS(id));
   } catch (err) {
@@ -551,7 +547,7 @@ router.post("/os/:id/itens", async (req, res) => {
 
   try {
     const dados = linhaItemSchema.parse(req.body);
-    const situacao = await verificarItensEditaveis(id);
+    const situacao = await verificarOrcamentoEditavel(id);
     if ("erro" in situacao) return res.status(situacao.codigo).json({ erro: situacao.erro });
 
     const [escolhido] = await db
@@ -576,7 +572,6 @@ router.post("/os/:id/itens", async (req, res) => {
           set: { quantidade: sql`${servicoItem.quantidade} + excluded.quantidade` },
         });
       await recalcularTotal(tx, id);
-      if (situacao.fase === "aberta") await invalidarAprovacao(tx, id);
     });
 
     res.status(201).json(await carregarOS(id));
@@ -596,7 +591,7 @@ router.put("/os/:id/itens/:itemOsId", async (req, res) => {
     const { quantidade, valorUnitario } = z
       .object({ quantidade: quantidadeSchema.optional(), valorUnitario: dinheiroOpcional("Valor do item") })
       .parse(req.body);
-    const situacao = await verificarItensEditaveis(id);
+    const situacao = await verificarOrcamentoEditavel(id);
     if ("erro" in situacao) return res.status(situacao.codigo).json({ erro: situacao.erro });
 
     if (valorUnitario !== null) {
@@ -620,7 +615,6 @@ router.put("/os/:id/itens/:itemOsId", async (req, res) => {
         .where(and(eq(servicoItem.id, itemOsId), eq(servicoItem.servicoId, id)))
         .returning({ id: servicoItem.id });
       await recalcularTotal(tx, id);
-      if (linhas.length && situacao.fase === "aberta") await invalidarAprovacao(tx, id);
       return linhas.length > 0;
     });
     if (!alterado) return res.status(404).json({ erro: "Item não está nessa OS." });
@@ -638,7 +632,7 @@ router.delete("/os/:id/itens/:itemOsId", async (req, res) => {
   if (!id || !itemOsId) return res.status(400).json({ erro: "Id inválido." });
 
   try {
-    const situacao = await verificarItensEditaveis(id);
+    const situacao = await verificarOrcamentoEditavel(id);
     if ("erro" in situacao) return res.status(situacao.codigo).json({ erro: situacao.erro });
 
     const removido = await db.transaction(async (tx) => {
@@ -647,7 +641,6 @@ router.delete("/os/:id/itens/:itemOsId", async (req, res) => {
         .where(and(eq(servicoItem.id, itemOsId), eq(servicoItem.servicoId, id)))
         .returning({ id: servicoItem.id });
       await recalcularTotal(tx, id);
-      if (linhas.length && situacao.fase === "aberta") await invalidarAprovacao(tx, id);
       return linhas.length > 0;
     });
     if (!removido) return res.status(404).json({ erro: "Item não está nessa OS." });
@@ -702,11 +695,14 @@ async function buscarSituacao(id: number) {
   return os ? { ...os, fase: os.fase as Fase } : null;
 }
 
-async function verificarItensEditaveis(id: number) {
+async function verificarOrcamentoEditavel(id: number) {
   const situacao = await buscarSituacao(id);
   if (!situacao) return { codigo: 404, erro: "OS não encontrada." };
-  if (!itensEditaveis(situacao.fase)) {
-    return { codigo: 409, erro: "Os itens não podem ser alterados depois que a OS é concluída." };
+  if (!orcamentoEditavel({ fase: situacao.fase, enviadaParaAprovacao: situacao.tokenCliente !== null || situacao.aprovada })) {
+    return {
+      codigo: 409,
+      erro: "Depois de enviada para aprovação, a OS não pode mais ser alterada. Só valores e pagamento continuam editáveis.",
+    };
   }
   return situacao;
 }
