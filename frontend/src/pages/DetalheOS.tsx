@@ -61,9 +61,7 @@ function formAtendimento(d: OSDetalhe) {
     tipoAtendimento: d.tipoAtendimento,
     enderecoAtendimento: d.enderecoAtendimento ?? "",
     dataVisita: paraCampoDataHora(d.dataVisita),
-    defeitoRelatado: d.defeitoRelatado ?? "",
-    diagnostico: d.diagnostico ?? "",
-    servicoExecutado: d.servicoExecutado ?? "",
+    descricaoServico: d.descricaoServico ?? "",
     observacoes: d.observacoes ?? "",
     previsaoEntrega: d.previsaoEntrega ?? "",
     garantiaDias: d.garantiaDias?.toString() ?? "",
@@ -97,6 +95,9 @@ export default function DetalheOS() {
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [escolhendoItem, setEscolhendoItem] = useState(false);
+  // Itens e atendimento aparecem so para leitura; o botao "Editar" abre os campos
+  const [editandoItens, setEditandoItens] = useState(false);
+  const [editandoAtendimento, setEditandoAtendimento] = useState(false);
   const [novoStatus, setNovoStatus] = useState("");
   const [mensagem, setMensagem] = useState("");
   // Valores sendo digitados nos itens de valor variavel (id da linha -> texto)
@@ -107,9 +108,7 @@ export default function DetalheOS() {
     tipoAtendimento: "oficina" as TipoAtendimento,
     enderecoAtendimento: "",
     dataVisita: "",
-    defeitoRelatado: "",
-    diagnostico: "",
-    servicoExecutado: "",
+    descricaoServico: "",
     observacoes: "",
     previsaoEntrega: "",
     garantiaDias: "",
@@ -204,12 +203,18 @@ export default function DetalheOS() {
     executar(() => api<OSDetalhe>(`/os/${id}/status`, "PATCH", { statusId: escolhido.id }), `Status alterado para "${escolhido.nome}".`);
   }
 
-  function salvarAtendimento(e: FormEvent) {
+  async function salvarAtendimento(e: FormEvent) {
     e.preventDefault();
-    executar(
+    const ok = await executar(
       () => api<OSDetalhe>(`/os/${id}`, "PUT", { ...atendimento, dataVisita: dataHoraParaISO(atendimento.dataVisita) }),
       "Atendimento salvo."
     );
+    if (ok) setEditandoAtendimento(false);
+  }
+
+  function cancelarAtendimento() {
+    if (os) setAtendimento(formAtendimento(os));
+    setEditandoAtendimento(false);
   }
 
   // A previsao de entrega herda a data da visita, a menos que ja tenha
@@ -266,6 +271,10 @@ export default function DetalheOS() {
   }
 
   const fase = os.status.fase;
+  // Depois do envio para aprovacao, itens e atendimento ficam travados (a API tambem bloqueia)
+  const editavel = os.orcamentoEditavel;
+  const editarItens = editavel && editandoItens;
+  const editarAtendimento = editavel && editandoAtendimento;
   const m = os.equipamento;
   const maquina = m ? `${m.marca} ${m.modelo}` : null;
   const primeiroNome = os.cliente.nome.split(" ")[0];
@@ -417,15 +426,32 @@ export default function DetalheOS() {
           <Secao
             titulo="Peças e serviços"
             acao={
-              os.itensEditaveis &&
-              !escolhendoItem && (
-                <Botao variante="secundario" pequeno onClick={() => setEscolhendoItem(true)}>
-                  <Icone.mais_sinal tamanho={16} /> Adicionar item
+              editavel &&
+              (editarItens ? (
+                <div className="flex gap-2">
+                  {!escolhendoItem && (
+                    <Botao variante="secundario" pequeno onClick={() => setEscolhendoItem(true)}>
+                      <Icone.mais_sinal tamanho={16} /> Adicionar item
+                    </Botao>
+                  )}
+                  <Botao
+                    pequeno
+                    onClick={() => {
+                      setEscolhendoItem(false);
+                      setEditandoItens(false);
+                    }}
+                  >
+                    Concluir
+                  </Botao>
+                </div>
+              ) : (
+                <Botao variante="secundario" pequeno onClick={() => setEditandoItens(true)}>
+                  Editar
                 </Botao>
-              )
+              ))
             }
           >
-            {escolhendoItem && (
+            {editarItens && escolhendoItem && (
               <div className="mb-3">
                 <SeletorItem aoEscolher={adicionarItem} />
                 <button type="button" className="mt-2 text-sm text-suave" onClick={() => setEscolhendoItem(false)}>
@@ -433,23 +459,20 @@ export default function DetalheOS() {
                 </button>
               </div>
             )}
-            {fase === "aberta" && (os.aprovada || os.tokenCliente) && os.itensEditaveis && (
-              <p className="mb-3 text-xs text-suave">Mudar itens agora cancela a aprovação: cliente e técnico precisarão assinar de novo.</p>
-            )}
 
             {os.itens.length === 0 ? (
               <p className="rounded-xl border border-dashed border-borda px-3 py-5 text-center text-sm text-suave">Nenhum item lançado.</p>
             ) : (
-              <ul className="flex flex-col divide-y divide-borda">
+              <ul className="@container flex flex-col divide-y divide-borda">
                 {os.itens.map((i) => (
-                  <li key={i.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                    <div className="min-w-0 sm:flex-1">
-                      <p className="font-medium sm:truncate">{i.nome}</p>
+                  <li key={i.id} className="flex flex-col gap-2 py-3 @md:flex-row @md:items-center @md:justify-between @md:gap-3">
+                    <div className="min-w-0 @md:flex-1">
+                      <p className="font-medium @md:truncate">{i.nome}</p>
                       <p className="text-xs text-suave">
                         {ROTULO_TIPO_ITEM[i.tipo]} · {formatarMoeda(i.valorUnitario)} cada
                         {i.valorVariavel && " · valor variável"}
                       </p>
-                      {os.itensEditaveis && i.valorVariavel && (
+                      {editarItens && i.valorVariavel && (
                         <div className="mt-2 w-fit">
                           <CampoValorLinha
                             rotulo={`Valor de ${i.nome}`}
@@ -460,12 +483,12 @@ export default function DetalheOS() {
                           />
                         </div>
                       )}
-                      {os.itensEditaveis && i.valorVariavel && Number(i.valorUnitario) === 0 && (
+                      {editavel && i.valorVariavel && Number(i.valorUnitario) === 0 && (
                         <p className="text-xs text-amber-200">Informe o valor deste item.</p>
                       )}
                     </div>
-                    <div className="flex items-center justify-between gap-3 sm:justify-end">
-                      {os.itensEditaveis ? (
+                    <div className="flex items-center justify-between gap-3 @md:justify-end">
+                      {editarItens ? (
                         <Quantidade
                           valor={i.quantidade}
                           desabilitado={ocupado}
@@ -475,7 +498,7 @@ export default function DetalheOS() {
                         <span className="text-sm text-suave">{i.quantidade}x</span>
                       )}
                       <span className="w-24 text-right font-semibold tabular-nums">{formatarMoeda(i.subtotal)}</span>
-                      {os.itensEditaveis && (
+                      {editarItens && (
                         <button
                           type="button"
                           disabled={ocupado}
@@ -494,9 +517,19 @@ export default function DetalheOS() {
           </Secao>
 
           {/* Atendimento */}
-          <Secao titulo="Atendimento">
-            <form onSubmit={salvarAtendimento} className="grid gap-4 sm:grid-cols-2">
-              <fieldset disabled={os.finalizada} className="contents">
+          <Secao
+            titulo="Atendimento"
+            acao={
+              editavel &&
+              !editarAtendimento && (
+                <Botao variante="secundario" pequeno onClick={() => setEditandoAtendimento(true)}>
+                  Editar
+                </Botao>
+              )
+            }
+          >
+            {editarAtendimento ? (
+              <form onSubmit={salvarAtendimento} className="grid gap-4 sm:grid-cols-2">
                 <CampoSelecao
                   rotulo="Onde"
                   value={atendimento.tipoAtendimento}
@@ -518,41 +551,28 @@ export default function DetalheOS() {
                     </option>
                   ))}
                 </CampoSelecao>
-                {atendimento.tipoAtendimento === "campo" ? (
-                  <Campo
-                    rotulo="Data e hora da visita"
-                    type="datetime-local"
-                    value={atendimento.dataVisita}
-                    onChange={(e) => mudarDataVisita(e.target.value)}
-                  />
-                ) : (
-                  <span className="hidden sm:block" />
-                )}
                 {atendimento.tipoAtendimento === "campo" && (
-                  <Campo
-                    rotulo="Endereço do atendimento *"
-                    className="sm:col-span-2"
-                    value={atendimento.enderecoAtendimento}
-                    onChange={(e) => setAtendimento({ ...atendimento, enderecoAtendimento: e.target.value })}
-                  />
+                  <>
+                    <Campo
+                      rotulo="Data e hora da visita"
+                      type="datetime-local"
+                      value={atendimento.dataVisita}
+                      onChange={(e) => mudarDataVisita(e.target.value)}
+                    />
+                    <span className="hidden sm:block" />
+                    <Campo
+                      rotulo="Endereço do atendimento *"
+                      className="sm:col-span-2"
+                      value={atendimento.enderecoAtendimento}
+                      onChange={(e) => setAtendimento({ ...atendimento, enderecoAtendimento: e.target.value })}
+                    />
+                  </>
                 )}
                 <AreaTexto
-                  rotulo="Defeito relatado"
+                  rotulo="Serviço a ser realizado"
                   className="sm:col-span-2"
-                  value={atendimento.defeitoRelatado}
-                  onChange={(e) => setAtendimento({ ...atendimento, defeitoRelatado: e.target.value })}
-                />
-                <AreaTexto
-                  rotulo="Diagnóstico técnico"
-                  className="sm:col-span-2"
-                  value={atendimento.diagnostico}
-                  onChange={(e) => setAtendimento({ ...atendimento, diagnostico: e.target.value })}
-                />
-                <AreaTexto
-                  rotulo="Serviço executado"
-                  className="sm:col-span-2"
-                  value={atendimento.servicoExecutado}
-                  onChange={(e) => setAtendimento({ ...atendimento, servicoExecutado: e.target.value })}
+                  value={atendimento.descricaoServico}
+                  onChange={(e) => setAtendimento({ ...atendimento, descricaoServico: e.target.value })}
                 />
                 <Campo
                   rotulo="Previsão de entrega"
@@ -575,19 +595,42 @@ export default function DetalheOS() {
                   value={atendimento.observacoes}
                   onChange={(e) => setAtendimento({ ...atendimento, observacoes: e.target.value })}
                 />
-              </fieldset>
-              {fase === "aberta" && os.aceiteTecnicoEm && atendimento.tecnicoId !== String(os.tecnico.id) && (
-                <p className="text-xs text-amber-200 sm:col-span-2">Trocar o técnico cancela o aceite do técnico atual: o novo técnico precisará assinar.</p>
-              )}
-              {!os.finalizada && (
                 <div className="flex items-center justify-end gap-3 sm:col-span-2">
                   {atendimentoAlterado && <span className="text-sm text-amber-200">Alterações não salvas</span>}
+                  <Botao type="button" variante="secundario" onClick={cancelarAtendimento} disabled={ocupado}>
+                    Cancelar
+                  </Botao>
                   <Botao type="submit" disabled={ocupado || !atendimentoAlterado}>
-                    Salvar atendimento
+                    Salvar
                   </Botao>
                 </div>
-              )}
-            </form>
+              </form>
+            ) : (
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <Info rotulo="Onde">{ROTULO_ATENDIMENTO[os.tipoAtendimento]}</Info>
+                <Info rotulo="Técnico responsável">{os.tecnico.nome}</Info>
+                {os.tipoAtendimento === "campo" && (
+                  <>
+                    <Info rotulo="Visita">{os.dataVisita && formatarDataHora(os.dataVisita)}</Info>
+                    <Info rotulo="Endereço">{os.enderecoAtendimento}</Info>
+                  </>
+                )}
+                <div className="col-span-2">
+                  <Info rotulo="Serviço a ser realizado">
+                    {os.descricaoServico && <span className="whitespace-pre-line">{os.descricaoServico}</span>}
+                  </Info>
+                </div>
+                <Info rotulo="Previsão de entrega">{os.previsaoEntrega && formatarDataSimples(os.previsaoEntrega)}</Info>
+                <Info rotulo="Garantia">{os.garantiaDias !== null && `${os.garantiaDias} dias`}</Info>
+                {os.observacoes && (
+                  <div className="col-span-2">
+                    <Info rotulo="Observações">
+                      <span className="whitespace-pre-line">{os.observacoes}</span>
+                    </Info>
+                  </div>
+                )}
+              </dl>
+            )}
           </Secao>
         </div>
 

@@ -195,9 +195,7 @@ export async function gerarPdfOS(os: OSDetalhe) {
     ["Técnico responsável", os.tecnico.nome],
   ]);
 
-  y = blocoTexto(doc, y + 2, "Defeito relatado", os.defeitoRelatado);
-  y = blocoTexto(doc, y, "Diagnóstico técnico", os.diagnostico);
-  y = blocoTexto(doc, y, "Serviço executado", os.servicoExecutado);
+  y = blocoTexto(doc, y + 2, "Serviço a ser realizado", os.descricaoServico);
   y = blocoTexto(doc, y, "Observações", os.observacoes);
 
   y = tabelaItens(doc, y + 1, os.itens);

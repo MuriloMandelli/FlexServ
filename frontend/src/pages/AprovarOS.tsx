@@ -109,10 +109,10 @@ export default function AprovarOS() {
                   <dt className="text-xs text-suave">Atendimento</dt>
                   <dd>{ROTULO_ATENDIMENTO[dados.os.tipoAtendimento]}</dd>
                 </div>
-                {dados.os.defeitoRelatado && (
+                {dados.os.descricaoServico && (
                   <div className="col-span-2">
-                    <dt className="text-xs text-suave">Defeito relatado</dt>
-                    <dd className="whitespace-pre-line">{dados.os.defeitoRelatado}</dd>
+                    <dt className="text-xs text-suave">Serviço a ser realizado</dt>
+                    <dd className="whitespace-pre-line">{dados.os.descricaoServico}</dd>
                   </div>
                 )}
                 {dados.os.previsaoEntrega && (

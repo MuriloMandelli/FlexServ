@@ -47,10 +47,7 @@ export default function Login() {
         <div className="absolute -right-40 -top-40 h-96 w-96 rounded-full bg-primaria/10 blur-3xl" />
         <Marca grande />
         <div className="relative">
-          <h2 className="max-w-md text-4xl font-bold leading-tight tracking-tight">
-            Do papel para o digital: a assistência técnica da TecFlex em um só lugar.
-          </h2>
-          <ul className="mt-8 space-y-4">
+          <ul className="space-y-4">
             {DESTAQUES.map((d) => (
               <li key={d.texto} className="flex items-center gap-3 text-suave">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primaria/15 text-primaria">

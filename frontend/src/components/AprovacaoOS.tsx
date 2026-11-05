@@ -79,13 +79,17 @@ export function PainelAprovacao({ os, usuarioId, ocupado, executar }: Props) {
           <p className="font-semibold text-amber-200">Aguardando aprovação</p>
           <p className="text-sm text-suave">
             Envie o orçamento: o cliente e o técnico recebem um link no WhatsApp, leem os termos e tocam em "Assinar". O
-            serviço só começa depois dos dois aceites.
+            serviço só começa depois dos dois aceites. Depois do envio, peças, serviços e atendimento não podem mais ser
+            alterados.
           </p>
         </div>
         {semItens && <p className="text-sm text-amber-200">Adicione os itens do orçamento antes de enviar.</p>}
         <Botao
           disabled={semItens || ocupado}
-          onClick={() => executar(() => api<OSDetalhe>(`/os/${os.id}/aprovacao`, "POST"), "Links de aprovação gerados.")}
+          onClick={() => {
+            if (!confirm("Enviar para aprovação? Depois disso, peças, serviços e atendimento ficam travados. Confira tudo antes.")) return;
+            executar(() => api<OSDetalhe>(`/os/${os.id}/aprovacao`, "POST"), "Links de aprovação gerados.");
+          }}
         >
           <Icone.assinatura tamanho={18} /> Enviar para aprovação
         </Botao>
@@ -106,7 +110,8 @@ export function PainelAprovacao({ os, usuarioId, ocupado, executar }: Props) {
       <p className="font-semibold text-amber-200">Aguardando aprovação</p>
       <p className="mb-3 text-sm text-suave">A tela se atualiza sozinha quando alguém assinar.</p>
 
-      <div className="flex flex-col gap-3">
+      {/* @container: a linha se ajusta a largura do cartao, nao da tela */}
+      <div className="@container flex flex-col gap-3">
         <LinhaAceite
           titulo="Cliente"
           nome={os.cliente.nome}
@@ -182,7 +187,7 @@ function LinhaAceite({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl bg-fundo/50 p-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 rounded-xl bg-fundo/50 p-3 @lg:flex-row @lg:items-center @lg:justify-between">
       <div className="min-w-0">
         <p className="text-xs text-suave">{titulo}</p>
         <p className="truncate font-medium">{nome}</p>
@@ -195,7 +200,7 @@ function LinhaAceite({
           <p className="text-sm text-amber-200">Aguardando assinatura</p>
         )}
       </div>
-      {!assinadoEm && <div className="flex shrink-0 flex-wrap gap-2">{children}</div>}
+      {!assinadoEm && <div className="flex flex-wrap gap-2 @lg:shrink-0">{children}</div>}
     </div>
   );
 }

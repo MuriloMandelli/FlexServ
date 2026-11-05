@@ -95,7 +95,7 @@ export default function Menu() {
                   <span className="text-suave">#{o.id}</span> {o.clienteNome}
                 </p>
                 <p className="truncate text-xs text-suave">
-                  {o.defeitoRelatado ? `${o.defeitoRelatado} · ` : ""}
+                  {o.descricaoServico ? `${o.descricaoServico} · ` : ""}
                   {formatarData(o.dataAbertura)}
                   {!o.aprovada && o.status.fase === "aberta" ? " · aguardando aprovação" : ""}
                 </p>

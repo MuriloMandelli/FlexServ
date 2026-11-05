@@ -108,7 +108,7 @@ export type OSResumo = {
   aprovada: boolean;
   dataAbertura: string;
   previsaoEntrega: string | null;
-  defeitoRelatado: string | null;
+  descricaoServico: string | null;
   clienteId: number;
   clienteNome: string;
   clienteTelefone: string | null;
@@ -123,9 +123,7 @@ export type OSDetalhe = {
   tipoAtendimento: TipoAtendimento;
   enderecoAtendimento: string | null;
   dataVisita: string | null;
-  defeitoRelatado: string | null;
-  diagnostico: string | null;
-  servicoExecutado: string | null;
+  descricaoServico: string | null;
   observacoes: string | null;
   garantiaDias: number | null;
   valorItens: string;
@@ -167,7 +165,8 @@ export type OSDetalhe = {
   itens: ItemLancado[];
   avisos: Aviso[];
   aprovada: boolean;
-  itensEditaveis: boolean;
+  // Itens e atendimento so mudam antes de enviar para aprovacao
+  orcamentoEditavel: boolean;
   finalizada: boolean;
 };
 
@@ -178,7 +177,7 @@ export type AprovacaoPublica = {
     id: number;
     dataAbertura: string;
     tipoAtendimento: TipoAtendimento;
-    defeitoRelatado: string | null;
+    descricaoServico: string | null;
     previsaoEntrega: string | null;
     garantiaDias: number | null;
     valorItens: string;

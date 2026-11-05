@@ -57,7 +57,7 @@ export function MaquinasCliente({ clienteId }: { clienteId: number }) {
                 <Link to={`/os/${o.id}`} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                   <span className="min-w-0">
                     <span className="text-suave">#{o.id}</span> {formatarData(o.dataAbertura)}
-                    {o.defeitoRelatado && <span className="block truncate text-xs text-suave">{o.defeitoRelatado}</span>}
+                    {o.descricaoServico && <span className="block truncate text-xs text-suave">{o.descricaoServico}</span>}
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <SeloStatus nome={o.status.nome} cor={o.status.cor} />

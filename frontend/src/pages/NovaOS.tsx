@@ -29,7 +29,7 @@ export default function NovaOS() {
   const [endereco, setEndereco] = useState("");
   const [dataVisita, setDataVisita] = useState("");
 
-  const [defeito, setDefeito] = useState("");
+  const [descricaoServico, setDescricaoServico] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [previsao, setPrevisao] = useState("");
   // A previsao herda a data da visita enquanto a pessoa nao mudar ela a mao
@@ -95,7 +95,7 @@ export default function NovaOS() {
         tipoAtendimento: tipo,
         enderecoAtendimento: tipo === "campo" ? endereco : null,
         dataVisita: tipo === "campo" ? dataHoraParaISO(dataVisita) : null,
-        defeitoRelatado: defeito,
+        descricaoServico,
         observacoes,
         previsaoEntrega: previsao,
         itens: linhas.map((l) => ({
@@ -184,11 +184,11 @@ export default function NovaOS() {
               </>
             )}
             <AreaTexto
-              rotulo="Defeito relatado pelo cliente"
+              rotulo="Serviço a ser realizado"
               className="sm:col-span-2"
-              value={defeito}
-              onChange={(e) => setDefeito(e.target.value)}
-              placeholder="Ex.: duas retas pulando ponto e overloque fazendo barulho"
+              value={descricaoServico}
+              onChange={(e) => setDescricaoServico(e.target.value)}
+              placeholder="Ex.: revisão das duas retas (pulando ponto) e regulagem do overloque"
             />
             <CampoSelecao rotulo="Técnico responsável" value={tecnicoId} onChange={(e) => setTecnicoId(e.target.value)}>
               {equipe.map((t) => (
