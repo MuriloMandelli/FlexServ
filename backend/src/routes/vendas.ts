@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
-import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { avisoCliente, cliente, item, venda, vendaItem, vendedor } from "../db/schema";
 import { autenticar } from "../middleware/auth";
 import { lerId, responderErro } from "../utils/http";
+import { filtroBusca } from "../utils/busca";
 import {
   dinheiroOpcional,
   precoAplicado,
@@ -113,7 +114,12 @@ router.get("/vendas", async (req, res) => {
         and(
           status ? eq(venda.status, status) : undefined,
           pagamento ? eq(venda.pagamentoStatus, pagamento) : undefined,
-          busca ? or(ilike(cliente.nome, `%${busca}%`), numero ? eq(venda.id, numero) : undefined) : undefined
+          busca
+            ? or(
+                filtroBusca(busca, { texto: [cliente.nome], digitos: [cliente.cpfCnpj, cliente.telefone] }),
+                numero ? eq(venda.id, numero) : undefined
+              )
+            : undefined
         )
       )
       .orderBy(desc(venda.id))

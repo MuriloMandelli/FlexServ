@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { and, asc, desc, eq, getTableColumns, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db";
 import {
@@ -15,6 +15,7 @@ import {
 } from "../db/schema";
 import { autenticar } from "../middleware/auth";
 import { dispositivoDaRequisicao, ipDaRequisicao, lerId, responderErro } from "../utils/http";
+import { filtroBusca } from "../utils/busca";
 import {
   dinheiroOpcional,
   precoAplicado,
@@ -220,7 +221,7 @@ async function carregarOS(id: number) {
 
 // GET /os -> lista resumida (mais recentes primeiro)
 // Filtros: ?statusId= ?fase= ?tipo=oficina|campo ?pagamento=pendente|pago
-//          ?busca= (nome do cliente ou numero da OS) ?clienteId= ?equipamentoId=
+//          ?busca= (cliente: nome, CPF/CNPJ ou telefone; ou numero da OS) ?clienteId= ?equipamentoId=
 router.get("/os", async (req, res) => {
   try {
     const q = req.query;
@@ -264,7 +265,12 @@ router.get("/os", async (req, res) => {
           pagamento ? eq(servico.pagamentoStatus, pagamento) : undefined,
           clienteId ? eq(servico.clienteId, clienteId) : undefined,
           equipamentoId ? eq(servico.equipamentoId, equipamentoId) : undefined,
-          busca ? or(ilike(cliente.nome, `%${busca}%`), numero ? eq(servico.id, numero) : undefined) : undefined
+          busca
+            ? or(
+                filtroBusca(busca, { texto: [cliente.nome], digitos: [cliente.cpfCnpj, cliente.telefone] }),
+                numero ? eq(servico.id, numero) : undefined
+              )
+            : undefined
         )
       )
       .orderBy(desc(servico.id))

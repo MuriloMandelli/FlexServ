@@ -11,7 +11,9 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "ts-node-dev --transpile-only src/db/seed.ts",
-    "db:seed-demo": "ts-node-dev --transpile-only src/db/seed-demo.ts"
+    "db:seed-demo": "ts-node-dev --transpile-only src/db/seed-demo.ts",
+    "db:importar-catalogo": "ts-node-dev --transpile-only src/db/importar-catalogo.ts",
+    "db:importar-clientes": "ts-node-dev --transpile-only src/db/importar-clientes.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",

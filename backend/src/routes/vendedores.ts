@@ -59,6 +59,59 @@ const editarSchema = z.object({
     }),
 });
 
+// ---- Minha conta: qualquer usuario logado edita os proprios dados basicos ----
+// Papel, loja e e-mail continuam so com o gestor (cadastro de vendedores).
+
+const minhaContaSchema = z.object({
+  nome: textoObrigatorio("Nome", 120),
+  telefone: textoOpcional(20),
+  senhaAtual: z.string().nullish(),
+  novaSenha: z
+    .string()
+    .nullish()
+    .transform((v) => (v ? v : null))
+    .refine((v) => v === null || v.length >= 6, {
+      message: "A nova senha deve ter no mínimo 6 caracteres.",
+    }),
+});
+
+router.get("/minha-conta", autenticar, async (req, res) => {
+  try {
+    const [eu] = await db.select(colunasPublicas).from(vendedor).where(eq(vendedor.id, req.usuario!.id));
+    if (!eu) return res.status(404).json({ erro: "Usuário não encontrado." });
+    res.json(eu);
+  } catch (err) {
+    responderErro(res, err);
+  }
+});
+
+router.put("/minha-conta", autenticar, async (req, res) => {
+  try {
+    const { senhaAtual, novaSenha, ...dados } = minhaContaSchema.parse(req.body);
+    const id = req.usuario!.id;
+
+    // Trocar a senha exige a senha atual (protege se alguem pegar o celular logado)
+    let senhaHash: string | undefined;
+    if (novaSenha) {
+      const [eu] = await db.select({ senhaHash: vendedor.senhaHash }).from(vendedor).where(eq(vendedor.id, id));
+      if (!eu || !senhaAtual || !(await bcrypt.compare(senhaAtual, eu.senhaHash))) {
+        return res.status(400).json({ erro: "Senha atual incorreta." });
+      }
+      senhaHash = await bcrypt.hash(novaSenha, 10);
+    }
+
+    const [atualizado] = await db
+      .update(vendedor)
+      .set({ ...dados, ...(senhaHash ? { senhaHash } : {}) })
+      .where(eq(vendedor.id, id))
+      .returning(colunasPublicas);
+    if (!atualizado) return res.status(404).json({ erro: "Usuário não encontrado." });
+    res.json(atualizado);
+  } catch (err) {
+    responderErro(res, err);
+  }
+});
+
 async function lojaExiste(id: number) {
   const [l] = await db.select({ id: loja.id }).from(loja).where(eq(loja.id, id));
   return Boolean(l);

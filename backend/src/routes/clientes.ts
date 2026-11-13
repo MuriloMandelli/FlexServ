@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
-import { asc, eq, ilike, or } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "../db";
 import { cliente } from "../db/schema";
 import { autenticar } from "../middleware/auth";
 import { lerId, responderErro } from "../utils/http";
+import { filtroBusca } from "../utils/busca";
 import { somenteDigitos, textoObrigatorio, textoOpcional } from "../utils/validacao";
 
 const router = Router();
@@ -29,18 +30,11 @@ const clienteSchema = z.object({
     .refine((v) => v === null || v.length === 8, { message: "CEP deve ter 8 dígitos." }),
 });
 
-// GET /clientes?busca=maria -> lista (filtra por nome ou CPF/CNPJ)
+// GET /clientes?busca=maria -> lista (filtra por nome, CPF/CNPJ ou telefone)
 router.get("/clientes", async (req, res) => {
   try {
     const busca = typeof req.query.busca === "string" ? req.query.busca.trim() : "";
-    const digitos = somenteDigitos(busca);
-
-    const filtro = busca
-      ? or(
-          ilike(cliente.nome, `%${busca}%`),
-          digitos ? ilike(cliente.cpfCnpj, `%${digitos}%`) : undefined
-        )
-      : undefined;
+    const filtro = filtroBusca(busca, { texto: [cliente.nome], digitos: [cliente.cpfCnpj, cliente.telefone] });
 
     const lista = await db.select().from(cliente).where(filtro).orderBy(asc(cliente.nome));
     res.json(lista);

@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
-import { and, asc, eq, ilike } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "../db";
 import { item } from "../db/schema";
 import { apenasGestor, autenticar } from "../middleware/auth";
 import { lerId, responderErro } from "../utils/http";
+import { filtroBusca } from "../utils/busca";
 import { dinheiroSchema, textoObrigatorio, textoOpcional } from "../utils/validacao";
 
 // Itens cobrados na OS e nas vendas: pecas, maquinas e mao de obra
@@ -25,7 +26,7 @@ const itemSchema = z.object({
   valorVariavel: z.boolean().default(false),
 });
 
-// GET /itens?busca=agulha&tipo=peca
+// GET /itens?busca=agulha&tipo=peca (busca no nome e na descricao, onde ficam SKU e marca)
 router.get("/itens", async (req, res) => {
   try {
     const busca = typeof req.query.busca === "string" ? req.query.busca.trim() : "";
@@ -34,7 +35,7 @@ router.get("/itens", async (req, res) => {
     const lista = await db
       .select()
       .from(item)
-      .where(and(busca ? ilike(item.nome, `%${busca}%`) : undefined, tipo ? eq(item.tipo, tipo) : undefined))
+      .where(and(filtroBusca(busca, { texto: [item.nome, item.descricao] }), tipo ? eq(item.tipo, tipo) : undefined))
       .orderBy(asc(item.nome));
     res.json(lista);
   } catch (err) {
