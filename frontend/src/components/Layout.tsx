@@ -91,6 +91,8 @@ export function Layout() {
   const { usuario, sair } = useAuth();
   const { pathname } = useLocation();
   const gestor = usuario?.papel === "gestor";
+  // Toque no nome/inicial: o gestor abre o proprio cadastro completo; os demais, "Minha conta"
+  const minhaConta = usuario && gestor ? `/vendedores/${usuario.id}` : "/minha-conta";
 
   return (
     <div className="min-h-dvh">
@@ -121,11 +123,17 @@ export function Layout() {
         </nav>
         {usuario && (
           <div className="flex items-center gap-3 border-t border-borda p-4">
-            <Avatar nome={usuario.nome} />
-            <div className="min-w-0 flex-1 leading-tight">
-              <p className="truncate text-sm font-semibold">{usuario.nome}</p>
-              <p className="text-xs capitalize text-suave">{usuario.papel}</p>
-            </div>
+            <NavLink
+              to={minhaConta}
+              className="-m-1.5 flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1.5 hover:bg-superficie-2"
+              title="Minha conta"
+            >
+              <Avatar nome={usuario.nome} />
+              <div className="min-w-0 flex-1 leading-tight">
+                <p className="truncate text-sm font-semibold">{usuario.nome}</p>
+                <p className="text-xs capitalize text-suave">{usuario.papel}</p>
+              </div>
+            </NavLink>
             <button
               onClick={sair}
               className="flex h-9 w-9 items-center justify-center rounded-lg text-suave hover:bg-superficie-2 hover:text-texto"
@@ -147,7 +155,11 @@ export function Layout() {
               Flex<span className="text-primaria">Serv</span>
             </span>
           </NavLink>
-          {usuario && <Avatar nome={usuario.nome} />}
+          {usuario && (
+            <NavLink to={minhaConta} aria-label="Minha conta" className="rounded-full">
+              <Avatar nome={usuario.nome} />
+            </NavLink>
+          )}
         </div>
       </header>
 

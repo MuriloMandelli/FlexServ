@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, mensagemDeErro } from "../api";
-import { formatarCep, formatarCpfCnpj } from "../formatar";
+import { formatarCep, formatarCpfCnpj, formatarTelefone } from "../formatar";
 import type { Cliente } from "../types";
 import { Aviso, Botao, CabecalhoPagina, Campo, Carregando, Cartao } from "../components/ui";
 import { MaquinasCliente } from "../components/MaquinasCliente";
@@ -28,7 +28,7 @@ export default function ClienteForm() {
         setForm({
           nome: c.nome,
           cpfCnpj: formatarCpfCnpj(c.cpfCnpj),
-          telefone: c.telefone ?? "",
+          telefone: formatarTelefone(c.telefone),
           email: c.email ?? "",
           endereco: c.endereco ?? "",
           cidade: c.cidade ?? "",
@@ -87,7 +87,6 @@ export default function ClienteForm() {
               className="sm:col-span-2"
               value={form.nome}
               onChange={(e) => alterar("nome", e.target.value)}
-              placeholder="Nome da pessoa ou empresa"
               required
             />
             <Campo
@@ -95,14 +94,13 @@ export default function ClienteForm() {
               inputMode="numeric"
               value={form.cpfCnpj}
               onChange={(e) => alterar("cpfCnpj", e.target.value)}
-              placeholder="Somente números"
             />
             <Campo
               rotulo="Telefone"
               type="tel"
               inputMode="tel"
               value={form.telefone}
-              onChange={(e) => alterar("telefone", e.target.value)}
+              onChange={(e) => alterar("telefone", formatarTelefone(e.target.value))}
               placeholder="(48) 99999-0000"
             />
             <Campo

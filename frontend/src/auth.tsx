@@ -12,6 +12,8 @@ type ContextoAuth = {
   usuario: Usuario | null;
   entrar: (email: string, senha: string) => Promise<void>;
   sair: () => void;
+  // Atualiza os dados mostrados (ex.: nome trocado em "Minha conta")
+  atualizarUsuario: (dados: Partial<Usuario>) => void;
 };
 
 const AuthContext = createContext<ContextoAuth | null>(null);
@@ -44,13 +46,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsuario(resposta.usuario);
   }, []);
 
+  const atualizarUsuario = useCallback((dados: Partial<Usuario>) => {
+    setUsuario((atual) => {
+      if (!atual) return atual;
+      const novo = { ...atual, ...dados };
+      localStorage.setItem(CHAVE_USUARIO, JSON.stringify(novo));
+      return novo;
+    });
+  }, []);
+
   // Se qualquer chamada voltar 401 (token vencido), desloga
   useEffect(() => {
     window.addEventListener(EVENTO_SESSAO_EXPIRADA, sair);
     return () => window.removeEventListener(EVENTO_SESSAO_EXPIRADA, sair);
   }, [sair]);
 
-  return <AuthContext.Provider value={{ usuario, entrar, sair }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ usuario, entrar, sair, atualizarUsuario }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

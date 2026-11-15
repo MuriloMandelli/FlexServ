@@ -75,7 +75,6 @@ export default function ItemForm() {
               className="sm:col-span-2"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex.: Lançadeira, Revisão completa"
               required
             />
             <CampoSelecao
@@ -110,7 +109,7 @@ export default function ItemForm() {
               onChange={(e) => setValor(e.target.value)}
               placeholder="0,00"
               required={!variavel}
-              dica={variavel ? "Opcional: vem preenchido ao lançar e pode ser alterado." : undefined}
+              dica={variavel ? "Pode ser alterado em cada OS." : undefined}
             />
             <Campo
               rotulo="Custo (R$)"
@@ -118,7 +117,7 @@ export default function ItemForm() {
               value={custo}
               onChange={(e) => setCusto(e.target.value)}
               placeholder="0,00"
-              dica="Quanto a TecFlex paga. Usado no relatório de lucro."
+              dica="Usado no cálculo do lucro."
             />
             <AreaTexto
               rotulo="Descrição"

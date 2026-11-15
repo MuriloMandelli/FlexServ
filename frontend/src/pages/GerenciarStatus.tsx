@@ -176,7 +176,6 @@ export default function GerenciarStatus() {
             min={0}
             value={form.ordem}
             onChange={(e) => setForm({ ...form, ordem: Number(e.target.value) })}
-            dica="Define a ordem em que o status aparece nas listas."
           />
 
           <label className="flex items-center gap-3 text-sm">

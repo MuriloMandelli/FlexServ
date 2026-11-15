@@ -117,7 +117,7 @@ export default function ConsultaOS() {
 
       <div className="mb-4 flex flex-col gap-3">
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Busca valor={busca} aoMudar={setBusca} placeholder="Buscar pelo cliente ou nº da OS" className="sm:max-w-md sm:flex-1" />
+          <Busca valor={busca} aoMudar={setBusca} placeholder="Cliente ou nº da OS" className="sm:max-w-md sm:flex-1" />
           <div className="grid grid-cols-2 gap-2 sm:flex">
             <select
               value={tipo}

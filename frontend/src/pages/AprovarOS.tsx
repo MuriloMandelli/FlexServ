@@ -182,7 +182,6 @@ export default function AprovarOS() {
                     value={nome}
                     onChange={(e) => setNome(e.target.value)}
                     autoComplete="name"
-                    placeholder="Nome de quem está aprovando"
                   />
                   <label className="flex cursor-pointer items-start gap-3 text-sm">
                     <input

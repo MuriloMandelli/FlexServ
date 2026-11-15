@@ -173,7 +173,7 @@ export default function NovaOS() {
                   className="sm:col-span-2"
                   value={endereco}
                   onChange={(e) => setEndereco(e.target.value)}
-                  placeholder="Rua, número, bairro, cidade"
+                  placeholder="Rua, número, bairro"
                 />
                 <Campo
                   rotulo="Data e hora da visita"
@@ -188,7 +188,6 @@ export default function NovaOS() {
               className="sm:col-span-2"
               value={descricaoServico}
               onChange={(e) => setDescricaoServico(e.target.value)}
-              placeholder="Ex.: revisão das duas retas (pulando ponto) e regulagem do overloque"
             />
             <CampoSelecao rotulo="Técnico responsável" value={tecnicoId} onChange={(e) => setTecnicoId(e.target.value)}>
               {equipe.map((t) => (
@@ -214,7 +213,6 @@ export default function NovaOS() {
               className="sm:col-span-2"
               value={observacoes}
               onChange={(e) => setObservacoes(e.target.value)}
-              placeholder="Ex.: veio com pedal e fonte"
             />
           </Cartao>
 

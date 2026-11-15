@@ -3,12 +3,13 @@ import type { FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, mensagemDeErro } from "../api";
 import { useAuth } from "../auth";
+import { formatarTelefone } from "../formatar";
 import type { Loja, Papel, Vendedor } from "../types";
 import { Aviso, Botao, CabecalhoPagina, Campo, CampoSelecao, CampoSenha, Carregando, Cartao } from "../components/ui";
 
 export default function VendedorForm() {
   const { id } = useParams();
-  const { usuario } = useAuth();
+  const { usuario, atualizarUsuario } = useAuth();
   const editando = id !== undefined;
   // O gestor nao pode mudar o proprio papel nem se excluir (o back-end tambem bloqueia)
   const ehEuMesmo = editando && Number(id) === usuario?.id;
@@ -36,7 +37,7 @@ export default function VendedorForm() {
         if (v) {
           setNome(v.nome);
           setEmail(v.email);
-          setTelefone(v.telefone ?? "");
+          setTelefone(formatarTelefone(v.telefone));
           setPapel(v.papel);
           setLojaId(String(v.lojaId));
         } else if (listaLojas.length === 1) {
@@ -55,6 +56,8 @@ export default function VendedorForm() {
       const dados = { nome, email, telefone, papel, lojaId: Number(lojaId), senha };
       if (editando) await api(`/vendedores/${id}`, "PUT", dados);
       else await api("/vendedores", "POST", dados);
+      // Editou a si mesmo: o nome no menu acompanha
+      if (ehEuMesmo) atualizarUsuario({ nome: nome.trim(), email: email.trim().toLowerCase() });
       navegar("/vendedores");
     } catch (err) {
       setErro(mensagemDeErro(err));
@@ -109,9 +112,9 @@ export default function VendedorForm() {
               inputMode="tel"
               className="sm:col-span-2"
               value={telefone}
-              onChange={(e) => setTelefone(e.target.value)}
+              onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
               placeholder="(48) 99999-9999"
-              dica="Usado para enviar ao técnico o link de aprovação das OS."
+              dica="Recebe o link de aprovação das OS."
             />
             <CampoSenha
               rotulo={editando ? "Nova senha" : "Senha *"}

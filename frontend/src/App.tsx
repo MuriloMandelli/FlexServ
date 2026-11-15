@@ -22,6 +22,7 @@ import Relatorios from "./pages/Relatorios";
 import Mais from "./pages/Mais";
 import AprovarOS from "./pages/AprovarOS";
 import TermosAprovacao from "./pages/TermosAprovacao";
+import MinhaConta from "./pages/MinhaConta";
 
 // Roteador "de dados" do react-router: permite avisar quando a pessoa tenta
 // sair de uma tela com alteracoes nao salvas (useBlocker)
@@ -51,6 +52,7 @@ const roteador = createBrowserRouter(
         <Route path="/vendas/:id" element={<DetalheVenda />} />
         <Route path="/relatorios" element={<Relatorios />} />
         <Route path="/mais" element={<Mais />} />
+        <Route path="/minha-conta" element={<MinhaConta />} />
         <Route path="/itens" element={<Itens />} />
         <Route path="/itens/novo" element={<RotaProtegida apenasGestor><ItemForm /></RotaProtegida>} />
         <Route path="/itens/:id" element={<RotaProtegida apenasGestor><ItemForm /></RotaProtegida>} />

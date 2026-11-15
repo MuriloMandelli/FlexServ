@@ -45,7 +45,7 @@ export function SeletorCliente({ aoEscolher }: { aoEscolher: (c: Cliente) => voi
         autoFocus
         value={termo}
         onChange={(e) => setTermo(e.target.value)}
-        placeholder="Buscar cliente por nome ou CPF/CNPJ"
+        placeholder="Nome, CPF/CNPJ ou telefone"
         className={estiloBusca}
       />
       <ul className="max-h-64 overflow-y-auto rounded-xl border border-borda">
@@ -87,7 +87,7 @@ export function SeletorItem({ aoEscolher }: { aoEscolher: (i: Item) => void }) {
         autoFocus
         value={termo}
         onChange={(e) => setTermo(e.target.value)}
-        placeholder="Buscar peça ou mão de obra"
+        placeholder="Buscar item"
         className={estiloBusca}
       />
       <ul className="max-h-72 overflow-y-auto rounded-xl border border-borda">
@@ -152,8 +152,8 @@ export function FormMaquina({
         <option value="industrial">Industrial</option>
         <option value="domestica">Doméstica</option>
       </CampoSelecao>
-      <Campo rotulo="Marca *" value={marca} onChange={(e) => setMarca(e.target.value)} placeholder="Ex.: Juki" />
-      <Campo rotulo="Modelo *" value={modelo} onChange={(e) => setModelo(e.target.value)} placeholder="Ex.: DDL-8700" />
+      <Campo rotulo="Marca *" value={marca} onChange={(e) => setMarca(e.target.value)} />
+      <Campo rotulo="Modelo *" value={modelo} onChange={(e) => setModelo(e.target.value)} />
       <Campo rotulo="Nº de série" value={numeroSerie} onChange={(e) => setNumeroSerie(e.target.value)} />
       {erro && (
         <div className="sm:col-span-2">

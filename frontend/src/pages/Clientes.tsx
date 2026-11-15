@@ -48,7 +48,7 @@ export default function Clientes() {
         }
       />
 
-      <Busca valor={busca} aoMudar={setBusca} placeholder="Buscar por nome ou CPF/CNPJ" className="mb-4 sm:max-w-md" />
+      <Busca valor={busca} aoMudar={setBusca} placeholder="Nome, CPF/CNPJ ou telefone" className="mb-4 sm:max-w-md" />
 
       {erro && <Aviso>{erro}</Aviso>}
       {!clientes && !erro && <Carregando />}

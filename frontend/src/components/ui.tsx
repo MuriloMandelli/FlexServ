@@ -192,7 +192,7 @@ export function Filtros<T extends string>({
   extra?: ReactNode;
 }) {
   return (
-    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-3 sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-1">
       {opcoes.map((o) => (
         <button
           key={o.valor}

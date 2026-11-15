@@ -13,6 +13,15 @@ type Linha = { item: Item; quantidade: number; valor: string };
 
 const precoDaLinha = (l: Linha) => (l.item.valorVariavel ? paraNumero(l.valor) : Number(l.item.valorUnitario));
 
+// Texto curto dos botoes de pagamento (cabe no celular)
+const ROTULO_CURTO: Record<FormaPagamento, string> = {
+  dinheiro: "Dinheiro",
+  pix: "Pix",
+  debito: "Débito",
+  credito: "Crédito",
+  boleto: "Boleto",
+};
+
 export default function NovaVenda() {
   const navegar = useNavigate();
   const [cliente, setCliente] = useState<Cliente | null>(null);
@@ -183,7 +192,7 @@ export default function NovaVenda() {
                         forma === f ? "border-primaria bg-primaria/15 text-primaria" : "border-borda text-suave"
                       }`}
                     >
-                      {ROTULO_PAGAMENTO[f].replace("Cartão de ", "")}
+                      {ROTULO_CURTO[f]}
                     </button>
                   ))}
                 </div>

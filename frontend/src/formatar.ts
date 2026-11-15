@@ -9,6 +9,20 @@ export function formatarCpfCnpj(valor: string | null) {
   return valor;
 }
 
+// Mascara do telefone enquanto digita: (48) 99999-0000 (celular) ou
+// (48) 3436-0000 (fixo). Aceita colar com +55 e ignora o que nao e numero.
+export function formatarTelefone(valor: string | null) {
+  let d = (valor ?? "").replace(/\D/g, "");
+  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
+  d = d.slice(0, 11);
+  if (d.length <= 2) return d ? `(${d}` : "";
+  const ddd = d.slice(0, 2);
+  const resto = d.slice(2);
+  if (resto.length <= 4) return `(${ddd}) ${resto}`;
+  const meio = resto.length === 9 ? 5 : 4;
+  return `(${ddd}) ${resto.slice(0, meio)}-${resto.slice(meio)}`;
+}
+
 export function formatarCep(valor: string | null) {
   if (!valor) return "";
   return valor.length === 8 ? valor.replace(/(\d{5})(\d{3})/, "$1-$2") : valor;

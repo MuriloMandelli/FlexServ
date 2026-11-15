@@ -85,7 +85,7 @@ export default function Itens() {
       />
 
       <div className="mb-4 flex flex-col gap-3">
-        <Busca valor={busca} aoMudar={setBusca} placeholder="Buscar pelo nome" className="sm:max-w-md" />
+        <Busca valor={busca} aoMudar={setBusca} placeholder="Nome ou código" className="sm:max-w-md" />
         <Filtros
           opcoes={[
             { valor: "todos", rotulo: "Todos" },

@@ -75,7 +75,7 @@ export default function Vendas() {
       />
 
       <div className="mb-4 flex flex-col gap-3">
-        <Busca valor={busca} aoMudar={setBusca} placeholder="Buscar pelo cliente ou nº da venda" className="sm:max-w-md" />
+        <Busca valor={busca} aoMudar={setBusca} placeholder="Cliente ou nº da venda" className="sm:max-w-md" />
         <Filtros
           opcoes={[
             { valor: "todas", rotulo: "Todas" },
