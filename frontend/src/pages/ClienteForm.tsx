@@ -6,12 +6,14 @@ import { formatarCep, formatarCpfCnpj, formatarTelefone } from "../formatar";
 import type { Cliente } from "../types";
 import { Aviso, Botao, CabecalhoPagina, Campo, Carregando, Cartao } from "../components/ui";
 import { MaquinasCliente } from "../components/MaquinasCliente";
+import { useConfirmar } from "../components/Confirmacao";
 
 const vazio = { nome: "", cpfCnpj: "", telefone: "", email: "", endereco: "", cidade: "", cep: "" };
 type Formulario = typeof vazio;
 
 // Serve tanto para cadastrar (/clientes/novo) quanto para editar (/clientes/:id)
 export default function ClienteForm() {
+  const confirmar = useConfirmar();
   const { id } = useParams();
   const editando = id !== undefined;
   const navegar = useNavigate();
@@ -59,7 +61,7 @@ export default function ClienteForm() {
   }
 
   async function excluir() {
-    if (!confirm(`Excluir o cliente "${form.nome}"?`)) return;
+    if (!(await confirmar({ titulo: "Excluir cliente?", mensagem: `"${form.nome}" será removido do cadastro.`, confirmar: "Excluir", perigo: true }))) return;
     setErro("");
     try {
       await api(`/clientes/${id}`, "DELETE");

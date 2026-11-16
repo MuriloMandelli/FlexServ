@@ -23,9 +23,9 @@ export default function AprovarOS() {
     return api<AprovacaoPublica>(`/publico/aprovacao/${token}`)
       .then((d) => {
         setDados(d);
-        // Tecnico: nome ja preenchido. Cliente: quem assina digita o proprio nome
-        // (em empresa, quem assina e uma pessoa, nao a razao social)
-        if (d.papel === "tecnico") setNome((atual) => atual || d.nomeSugerido);
+        // Nome ja vem do cadastro (cliente ou tecnico); quem assina so confere
+        // e troca se for outra pessoa (ex.: funcionario de uma confeccao)
+        setNome((atual) => atual || d.nomeSugerido);
       })
       .catch((err) => setErroCarga(mensagemDeErro(err)));
   }
@@ -92,7 +92,11 @@ export default function AprovarOS() {
               </Cartao>
             )}
             {!dados.aceite && !dados.podeAssinar && (
-              <Aviso tipo="info">Este orçamento não está mais disponível para assinatura. Fale com a TecFlex.</Aviso>
+              <Aviso tipo="info">
+                {dados.expirado
+                  ? "Este link expirou. Peça um novo link à TecFlex."
+                  : "Este orçamento não está mais disponível para assinatura. Fale com a TecFlex."}
+              </Aviso>
             )}
 
             <Cartao className="p-4 sm:p-5">
@@ -178,7 +182,7 @@ export default function AprovarOS() {
               <Cartao className="p-4 sm:p-5">
                 <form onSubmit={assinar} className="flex flex-col gap-4">
                   <Campo
-                    rotulo="Seu nome completo"
+                    rotulo="Seu nome"
                     value={nome}
                     onChange={(e) => setNome(e.target.value)}
                     autoComplete="name"

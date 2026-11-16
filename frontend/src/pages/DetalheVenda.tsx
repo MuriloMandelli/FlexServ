@@ -8,8 +8,10 @@ import { SeloPagamento, SeloStatus } from "../components/StatusOS";
 import { BotaoWhatsApp, HistoricoAvisos } from "../components/WhatsApp";
 import { Icone } from "../components/Icones";
 import { Aviso, Botao, CabecalhoPagina, CampoSelecao, Carregando, Secao } from "../components/ui";
+import { useConfirmar } from "../components/Confirmacao";
 
 export default function DetalheVenda() {
+  const confirmar = useConfirmar();
   const { id } = useParams();
   const [venda, setVenda] = useState<VendaDetalhe | null>(null);
   const [forma, setForma] = useState<FormaPagamento | "">("");
@@ -205,10 +207,14 @@ export default function DetalheVenda() {
                 <Botao
                   variante="perigo"
                   disabled={ocupado}
-                  onClick={() => {
-                    if (confirm(`Cancelar a venda #${venda.id}? Ela sai dos relatórios de faturamento.`)) {
-                      executar(() => api<VendaDetalhe>(`/vendas/${id}/cancelar`, "PATCH"), "Venda cancelada.");
-                    }
+                  onClick={async () => {
+                    const ok = await confirmar({
+                      titulo: `Cancelar a venda #${venda.id}?`,
+                      mensagem: "Ela sai dos relatórios de faturamento.",
+                      confirmar: "Cancelar venda",
+                      perigo: true,
+                    });
+                    if (ok) executar(() => api<VendaDetalhe>(`/vendas/${id}/cancelar`, "PATCH"), "Venda cancelada.");
                   }}
                 >
                   Cancelar venda

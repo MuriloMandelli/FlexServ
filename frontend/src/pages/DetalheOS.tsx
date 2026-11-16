@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { Link, useBlocker, useParams } from "react-router-dom";
+import { Link, useBlocker, useNavigate, useParams } from "react-router-dom";
 import { api, mensagemDeErro } from "../api";
 import { useAuth } from "../auth";
 import {
@@ -12,6 +12,7 @@ import {
   formatarDataHora,
   formatarDataSimples,
   formatarMoeda,
+  formatarVisita,
   ROTULO_ATENDIMENTO,
   ROTULO_FASE,
   ROTULO_PAGAMENTO,
@@ -32,11 +33,13 @@ import {
   Botao,
   CabecalhoPagina,
   Campo,
+  CampoDataHora,
   CampoSelecao,
   CampoValorLinha,
   Carregando,
   Secao,
 } from "../components/ui";
+import { useConfirmar } from "../components/Confirmacao";
 
 function Info({ rotulo, children }: { rotulo: string; children: ReactNode }) {
   return (
@@ -47,12 +50,14 @@ function Info({ rotulo, children }: { rotulo: string; children: ReactNode }) {
   );
 }
 
-// "2026-10-20T14:30:00.000Z" -> valor do campo datetime-local no horario local
+// "2026-10-20T14:30:00.000Z" -> valor do campo de data e horario no horario local
+// (meia-noite = horario nao informado: so a data)
 function paraCampoDataHora(iso: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  const data = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return d.getHours() === 0 && d.getMinutes() === 0 ? data : `${data}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 // Valores dos formularios a partir da OS (para preencher e comparar)
@@ -79,16 +84,20 @@ function formPagamento(d: OSDetalhe) {
 
 const iguais = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
 
+const ENTREGA = "A entrega ao cliente será registrada e a OS será finalizada.";
+
 // Proximo passo natural de cada fase (botao principal da OS)
 const PROXIMO_PASSO: Partial<Record<Fase, { fase: Fase; rotulo: string; confirmar?: string }>> = {
   aberta: { fase: "execucao", rotulo: "Iniciar serviço" },
   execucao: { fase: "concluida", rotulo: "Concluir serviço" },
-  concluida: { fase: "entregue", rotulo: "Registrar entrega", confirmar: "Confirmar a entrega ao cliente? A OS será finalizada." },
+  concluida: { fase: "entregue", rotulo: "Registrar entrega", confirmar: ENTREGA },
 };
 
 export default function DetalheOS() {
+  const confirmar = useConfirmar();
   const { id } = useParams();
   const { usuario } = useAuth();
+  const navegar = useNavigate();
   const [os, setOs] = useState<OSDetalhe | null>(null);
   const [status, setStatus] = useState<StatusOS[]>([]);
   const [equipe, setEquipe] = useState<MembroEquipe[]>([]);
@@ -144,9 +153,14 @@ export default function DetalheOS() {
   const bloqueio = useBlocker(({ currentLocation, nextLocation }) => alterado && currentLocation.pathname !== nextLocation.pathname);
   useEffect(() => {
     if (bloqueio.state !== "blocked") return;
-    if (confirm("Há alterações não salvas nesta OS. Sair mesmo assim?")) bloqueio.proceed();
-    else bloqueio.reset();
-  }, [bloqueio]);
+    confirmar({
+      titulo: "Sair sem salvar?",
+      mensagem: "Há alterações não salvas nesta OS.",
+      confirmar: "Sair sem salvar",
+      cancelar: "Continuar editando",
+      perigo: true,
+    }).then((ok) => (ok ? bloqueio.proceed() : bloqueio.reset()));
+  }, [bloqueio, confirmar]);
   useEffect(() => {
     if (!alterado) return;
     const aviso = (e: BeforeUnloadEvent) => e.preventDefault();
@@ -195,11 +209,16 @@ export default function DetalheOS() {
     }
   }
 
-  function mudarStatus() {
+  async function mudarStatus() {
     const escolhido = status.find((s) => String(s.id) === novoStatus);
     if (!escolhido) return;
-    if (escolhido.fase === "cancelada" && !confirm("Cancelar esta OS? Depois disso ela não poderá mais ser alterada.")) return;
-    if (escolhido.fase === "entregue" && !confirm("Confirmar a entrega da máquina ao cliente? A OS será finalizada.")) return;
+    if (
+      escolhido.fase === "cancelada" &&
+      !(await confirmar({ titulo: "Cancelar esta OS?", mensagem: "Depois disso ela não poderá mais ser alterada.", confirmar: "Cancelar OS", perigo: true }))
+    )
+      return;
+    if (escolhido.fase === "entregue" && !(await confirmar({ titulo: "Registrar a entrega?", mensagem: ENTREGA, confirmar: "Registrar entrega" })))
+      return;
     executar(() => api<OSDetalhe>(`/os/${id}/status`, "PATCH", { statusId: escolhido.id }), `Status alterado para "${escolhido.nome}".`);
   }
 
@@ -254,6 +273,27 @@ export default function DetalheOS() {
     executar(() => api<OSDetalhe>(`/os/${id}/itens`, "POST", { itemId: item.id, quantidade: 1 }));
   }
 
+  // So o gestor; a API confere de novo (antes da aprovacao ou depois de concluida)
+  async function excluir() {
+    if (!os) return;
+    const ok = await confirmar({
+      titulo: `Excluir a OS #${os.id}?`,
+      mensagem: "Os itens e avisos dela também serão apagados. Isso não pode ser desfeito.",
+      confirmar: "Excluir OS",
+      perigo: true,
+    });
+    if (!ok) return;
+    setErro("");
+    setOcupado(true);
+    try {
+      await api(`/os/${os.id}`, "DELETE");
+      navegar("/os", { replace: true });
+    } catch (err) {
+      setErro(mensagemDeErro(err));
+      setOcupado(false);
+    }
+  }
+
   async function pdf(acao: "imprimir" | "compartilhar") {
     if (!os) return;
     const doc = await gerarPdfOS(os);
@@ -271,6 +311,7 @@ export default function DetalheOS() {
   }
 
   const fase = os.status.fase;
+  const gestor = usuario?.papel === "gestor";
   // Depois do envio para aprovacao, itens e atendimento ficam travados (a API tambem bloqueia)
   const editavel = os.orcamentoEditavel;
   const editarItens = editavel && editandoItens;
@@ -302,7 +343,7 @@ export default function DetalheOS() {
       ? [
           {
             rotulo: "Visita técnica",
-            texto: `Olá ${primeiroNome}! Confirmando a visita técnica da TecFlex${os.dataVisita ? ` em ${formatarDataHora(os.dataVisita)}` : ""}${os.enderecoAtendimento ? ` no endereço ${os.enderecoAtendimento}` : ""}.`,
+            texto: `Olá ${primeiroNome}! Confirmando a visita técnica da TecFlex${os.dataVisita ? ` em ${formatarVisita(os.dataVisita)}` : ""}${os.enderecoAtendimento ? ` no endereço ${os.enderecoAtendimento}` : ""}.`,
           },
         ]
       : []),
@@ -379,8 +420,9 @@ export default function DetalheOS() {
                 {passo && statusDoPasso && (
                   <Botao
                     disabled={ocupado}
-                    onClick={() => {
-                      if (passo.confirmar && !confirm(passo.confirmar)) return;
+                    onClick={async () => {
+                      if (passo.confirmar && !(await confirmar({ titulo: "Registrar a entrega?", mensagem: passo.confirmar, confirmar: passo.rotulo })))
+                        return;
                       executar(
                         () => api<OSDetalhe>(`/os/${id}/status`, "PATCH", { statusId: statusDoPasso.id }),
                         `Status alterado para "${statusDoPasso.nome}".`
@@ -420,6 +462,22 @@ export default function DetalheOS() {
                 </details>
               </div>
             )}
+
+            {/* Peca descoberta depois da aprovacao vira outra OS, ja preenchida */}
+            {(fase !== "cancelada" && !os.orcamentoEditavel) || (gestor && os.podeExcluir) ? (
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-borda pt-4">
+                {fase !== "cancelada" && !os.orcamentoEditavel && (
+                  <Botao variante="secundario" pequeno onClick={() => navegar("/os/nova", { state: { origem: os.id } })}>
+                    <Icone.mais_sinal tamanho={16} /> Nova OS a partir desta
+                  </Botao>
+                )}
+                {gestor && os.podeExcluir && (
+                  <Botao variante="perigo" pequeno onClick={excluir} disabled={ocupado}>
+                    Excluir OS
+                  </Botao>
+                )}
+              </div>
+            ) : null}
           </Secao>
 
           {/* Itens */}
@@ -553,12 +611,7 @@ export default function DetalheOS() {
                 </CampoSelecao>
                 {atendimento.tipoAtendimento === "campo" && (
                   <>
-                    <Campo
-                      rotulo="Data e hora da visita"
-                      type="datetime-local"
-                      value={atendimento.dataVisita}
-                      onChange={(e) => mudarDataVisita(e.target.value)}
-                    />
+                    <CampoDataHora rotulo="Data e horário da visita" valor={atendimento.dataVisita} aoMudar={mudarDataVisita} />
                     <span className="hidden sm:block" />
                     <Campo
                       rotulo="Endereço do atendimento *"
@@ -611,7 +664,7 @@ export default function DetalheOS() {
                 <Info rotulo="Técnico responsável">{os.tecnico.nome}</Info>
                 {os.tipoAtendimento === "campo" && (
                   <>
-                    <Info rotulo="Visita">{os.dataVisita && formatarDataHora(os.dataVisita)}</Info>
+                    <Info rotulo="Visita">{os.dataVisita && formatarVisita(os.dataVisita)}</Info>
                     <Info rotulo="Endereço">{os.enderecoAtendimento}</Info>
                   </>
                 )}

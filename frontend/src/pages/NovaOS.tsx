@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api, mensagemDeErro } from "../api";
 import { useAuth } from "../auth";
 import { dataHoraParaISO, formatarMoeda, paraCampoValor, paraNumero, ROTULO_TIPO_ITEM } from "../formatar";
 import type { Cliente, Item, MembroEquipe, OSDetalhe, TipoAtendimento } from "../types";
 import { Icone } from "../components/Icones";
 import { Quantidade, SeletorCliente, SeletorItem } from "../components/Seletores";
-import { AreaTexto, Aviso, Botao, CabecalhoPagina, Campo, CampoSelecao, CampoValorLinha, Cartao } from "../components/ui";
+import { AreaTexto, Aviso, Botao, CabecalhoPagina, Campo, CampoDataHora, CampoSelecao, CampoValorLinha, Cartao } from "../components/ui";
 
 // "valor" so e usado nos itens de valor variavel (digitado na hora)
 type Linha = { item: Item; quantidade: number; valor: string };
@@ -17,6 +17,11 @@ const precoDaLinha = (l: Linha) => (l.item.valorVariavel ? paraNumero(l.valor) :
 export default function NovaOS() {
   const navegar = useNavigate();
   const { usuario } = useAuth();
+  // "Nova OS a partir desta": id da OS de origem (peca descoberta depois da aprovacao)
+  const origem = (useLocation().state as { origem?: number } | null)?.origem;
+  const [origemId, setOrigemId] = useState<number | null>(null);
+  // Endereco copiado da OS de origem (nao sobrescrever com o do cadastro)
+  const enderecoCopiado = useRef<string | null>(null);
 
   const [cliente, setCliente] = useState<Cliente | null>(null);
   // Tecnico responsavel: por padrao quem esta abrindo, mas pode ser outro
@@ -45,9 +50,28 @@ export default function NovaOS() {
     api<MembroEquipe[]>("/equipe").then(setEquipe).catch(() => setEquipe([]));
   }, []);
 
+  // Copia cliente, tecnico e atendimento da OS de origem
+  useEffect(() => {
+    if (!origem) return;
+    api<OSDetalhe>(`/os/${origem}`)
+      .then(async (o) => {
+        const c = await api<Cliente>(`/clientes/${o.cliente.id}`);
+        enderecoCopiado.current = o.enderecoAtendimento;
+        setCliente(c);
+        setTipo(o.tipoAtendimento);
+        setTecnicoId(String(o.tecnico.id));
+        setDescricaoServico(o.descricaoServico ?? "");
+        setObservacoes(`Complemento da OS #${o.id}`);
+        setOrigemId(o.id);
+      })
+      .catch((err) => setErro(mensagemDeErro(err)));
+  }, [origem]);
+
   // Sugere o endereco do cadastro do cliente para o atendimento em campo
   useEffect(() => {
-    if (cliente) setEndereco([cliente.endereco, cliente.cidade].filter(Boolean).join(", "));
+    if (!cliente) return;
+    setEndereco(enderecoCopiado.current ?? [cliente.endereco, cliente.cidade].filter(Boolean).join(", "));
+    enderecoCopiado.current = null;
   }, [cliente]);
 
   function mudarDataVisita(valor: string) {
@@ -119,7 +143,17 @@ export default function NovaOS() {
 
   return (
     <div>
-      <CabecalhoPagina titulo="Nova OS" subtitulo="Ordem de serviço de manutenção" voltarPara="/os" voltarRotulo="Ordens de serviço" />
+      <CabecalhoPagina
+        titulo="Nova OS"
+        subtitulo={origemId ? `Complemento da OS #${origemId}` : "Ordem de serviço de manutenção"}
+        voltarPara={origemId ? `/os/${origemId}` : "/os"}
+        voltarRotulo={origemId ? `OS #${origemId}` : "Ordens de serviço"}
+      />
+      {origemId && (
+        <div className="mb-4">
+          <Aviso tipo="info">Cliente, técnico e atendimento copiados da OS #{origemId}. Lance as peças ou serviços a mais e envie para aprovação.</Aviso>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-[1fr_300px] md:items-start">
         <form id="form-nova-os" onSubmit={abrirOS} className="flex min-w-0 flex-col gap-4">
@@ -134,7 +168,7 @@ export default function NovaOS() {
                 </button>
               </div>
             ) : (
-              <SeletorCliente aoEscolher={setCliente} />
+              <SeletorCliente aoEscolher={setCliente} focoInicial={false} />
             )}
           </Cartao>
 
@@ -175,12 +209,7 @@ export default function NovaOS() {
                   onChange={(e) => setEndereco(e.target.value)}
                   placeholder="Rua, número, bairro"
                 />
-                <Campo
-                  rotulo="Data e hora da visita"
-                  type="datetime-local"
-                  value={dataVisita}
-                  onChange={(e) => mudarDataVisita(e.target.value)}
-                />
+                <CampoDataHora rotulo="Data e horário da visita" valor={dataVisita} aoMudar={mudarDataVisita} />
               </>
             )}
             <AreaTexto

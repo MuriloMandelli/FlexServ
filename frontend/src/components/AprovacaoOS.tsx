@@ -6,6 +6,7 @@ import type { OSDetalhe } from "../types";
 import { Icone } from "./Icones";
 import { linkWhatsApp, numeroWhatsApp } from "./WhatsApp";
 import { Aviso, Botao, Modal } from "./ui";
+import { useConfirmar } from "./Confirmacao";
 
 // Aprovacao eletronica da OS: cliente e tecnico recebem um link pelo
 // WhatsApp, leem o orcamento e os termos e tocam em "Assinar". O tecnico
@@ -24,6 +25,7 @@ type Props = {
 };
 
 export function PainelAprovacao({ os, usuarioId, ocupado, executar }: Props) {
+  const confirmar = useConfirmar();
   const [assinando, setAssinando] = useState(false);
   const [copiado, setCopiado] = useState("");
   const enviado = Boolean(os.tokenCliente);
@@ -86,8 +88,13 @@ export function PainelAprovacao({ os, usuarioId, ocupado, executar }: Props) {
         {semItens && <p className="text-sm text-amber-200">Adicione os itens do orçamento antes de enviar.</p>}
         <Botao
           disabled={semItens || ocupado}
-          onClick={() => {
-            if (!confirm("Enviar para aprovação? Depois disso, peças, serviços e atendimento ficam travados. Confira tudo antes.")) return;
+          onClick={async () => {
+            const ok = await confirmar({
+              titulo: "Enviar para aprovação?",
+              mensagem: "Depois disso, peças, serviços e atendimento ficam travados. Confira tudo antes.",
+              confirmar: "Enviar",
+            });
+            if (!ok) return;
             executar(() => api<OSDetalhe>(`/os/${os.id}/aprovacao`, "POST"), "Links de aprovação gerados.");
           }}
         >
@@ -108,7 +115,25 @@ export function PainelAprovacao({ os, usuarioId, ocupado, executar }: Props) {
   return (
     <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
       <p className="font-semibold text-amber-200">Aguardando aprovação</p>
-      <p className="mb-3 text-sm text-suave">A tela se atualiza sozinha quando alguém assinar.</p>
+      {os.linksExpirados ? (
+        <div className="mb-3 mt-2 flex flex-col gap-2 rounded-xl border border-perigo/40 bg-perigo/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm">
+            Os links expiraram em {formatarDataHora(os.linksValidosAte)} e não funcionam mais.
+          </p>
+          <Botao
+            pequeno
+            disabled={ocupado}
+            onClick={() => executar(() => api<OSDetalhe>(`/os/${os.id}/aprovacao/renovar`, "POST"), "Novos links gerados. Envie de novo.")}
+          >
+            Gerar novos links
+          </Botao>
+        </div>
+      ) : (
+        <p className="mb-3 text-sm text-suave">
+          A tela se atualiza sozinha quando alguém assinar.
+          {os.linksValidosAte && ` Links válidos até ${formatarDataHora(os.linksValidosAte)}.`}
+        </p>
+      )}
 
       {/* @container: a linha se ajusta a largura do cartao, nao da tela */}
       <div className="@container flex flex-col gap-3">

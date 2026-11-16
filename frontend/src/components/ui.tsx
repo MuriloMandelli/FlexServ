@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -53,6 +53,55 @@ export function Campo({
       <input className={`min-h-11 ${estiloEntrada}`} {...props} />
       {dica && <span className="text-xs text-suave">{dica}</span>}
     </label>
+  );
+}
+
+// Data e horario em dois campos: o horario e opcional e o Enter na data pula
+// para o horario (o campo unico "data e hora" do navegador nao faz isso).
+// Valor: "2026-10-20T14:30", "2026-10-20" (sem horario) ou "".
+export function CampoDataHora({
+  rotulo,
+  valor,
+  aoMudar,
+  className = "",
+}: {
+  rotulo: string;
+  valor: string;
+  aoMudar: (valor: string) => void;
+  className?: string;
+}) {
+  const [data = "", hora = ""] = valor.split("T");
+  const campoHora = useRef<HTMLInputElement>(null);
+  const juntar = (d: string, h: string) => (d ? (h ? `${d}T${h}` : d) : "");
+  return (
+    <div className={`flex flex-col gap-1.5 ${className}`}>
+      <span className="text-sm font-medium">{rotulo}</span>
+      <div className="grid grid-cols-[1fr_8rem] gap-2">
+        <input
+          type="date"
+          aria-label={`${rotulo}: data`}
+          className={`min-h-11 ${estiloEntrada}`}
+          value={data}
+          onChange={(e) => aoMudar(juntar(e.target.value, hora))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              campoHora.current?.focus();
+            }
+          }}
+        />
+        <input
+          ref={campoHora}
+          type="time"
+          aria-label={`${rotulo}: horário`}
+          className={`min-h-11 ${estiloEntrada} disabled:opacity-50`}
+          value={hora}
+          disabled={!data}
+          onChange={(e) => aoMudar(juntar(data, e.target.value))}
+        />
+      </div>
+      <span className="text-xs text-suave">Horário opcional.</span>
+    </div>
   );
 }
 

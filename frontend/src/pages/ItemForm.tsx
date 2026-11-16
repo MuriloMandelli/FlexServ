@@ -4,8 +4,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api, mensagemDeErro } from "../api";
 import type { Item, TipoItem } from "../types";
 import { AreaTexto, Aviso, Botao, CabecalhoPagina, Campo, CampoSelecao, Carregando, Cartao } from "../components/ui";
+import { useConfirmar } from "../components/Confirmacao";
 
 export default function ItemForm() {
+  const confirmar = useConfirmar();
   const { id } = useParams();
   const editando = id !== undefined;
   const navegar = useNavigate();
@@ -51,7 +53,7 @@ export default function ItemForm() {
   }
 
   async function excluir() {
-    if (!confirm(`Excluir o item "${nome}"?`)) return;
+    if (!(await confirmar({ titulo: "Excluir item?", mensagem: `"${nome}" será removido do catálogo.`, confirmar: "Excluir", perigo: true }))) return;
     setErro("");
     try {
       await api(`/itens/${id}`, "DELETE");

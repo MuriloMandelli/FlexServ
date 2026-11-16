@@ -167,6 +167,11 @@ export type OSDetalhe = {
   aprovada: boolean;
   // Itens e atendimento so mudam antes de enviar para aprovacao
   orcamentoEditavel: boolean;
+  // Links de aprovacao: valem 7 dias a partir do envio
+  linksValidosAte: string | null;
+  linksExpirados: boolean;
+  // So o gestor exclui, e so antes da aprovacao ou depois de concluida
+  podeExcluir: boolean;
   finalizada: boolean;
 };
 
@@ -190,6 +195,7 @@ export type AprovacaoPublica = {
   nomeSugerido: string;
   termos: string | null;
   aceite: { em: string; nome: string } | null;
+  expirado: boolean;
   podeAssinar: boolean;
 };
 

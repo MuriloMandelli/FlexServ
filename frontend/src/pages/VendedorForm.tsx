@@ -6,8 +6,10 @@ import { useAuth } from "../auth";
 import { formatarTelefone } from "../formatar";
 import type { Loja, Papel, Vendedor } from "../types";
 import { Aviso, Botao, CabecalhoPagina, Campo, CampoSelecao, CampoSenha, Carregando, Cartao } from "../components/ui";
+import { useConfirmar } from "../components/Confirmacao";
 
 export default function VendedorForm() {
+  const confirmar = useConfirmar();
   const { id } = useParams();
   const { usuario, atualizarUsuario } = useAuth();
   const editando = id !== undefined;
@@ -66,7 +68,7 @@ export default function VendedorForm() {
   }
 
   async function excluir() {
-    if (!confirm(`Excluir o vendedor "${nome}"?`)) return;
+    if (!(await confirmar({ titulo: "Excluir vendedor?", mensagem: `"${nome}" perde o acesso ao sistema.`, confirmar: "Excluir", perigo: true }))) return;
     setErro("");
     try {
       await api(`/vendedores/${id}`, "DELETE");

@@ -4,8 +4,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api, mensagemDeErro } from "../api";
 import type { Loja } from "../types";
 import { Aviso, Botao, CabecalhoPagina, Campo, Carregando, Cartao } from "../components/ui";
+import { useConfirmar } from "../components/Confirmacao";
 
 export default function LojaForm() {
+  const confirmar = useConfirmar();
   const { id } = useParams();
   const editando = id !== undefined;
   const navegar = useNavigate();
@@ -43,7 +45,7 @@ export default function LojaForm() {
   }
 
   async function excluir() {
-    if (!confirm(`Excluir a loja "${nome}"?`)) return;
+    if (!(await confirmar({ titulo: "Excluir loja?", mensagem: `"${nome}" será removida.`, confirmar: "Excluir", perigo: true }))) return;
     setErro("");
     try {
       await api(`/lojas/${id}`, "DELETE");

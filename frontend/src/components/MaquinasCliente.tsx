@@ -6,11 +6,13 @@ import type { Equipamento, OSResumo } from "../types";
 import { FormMaquina } from "./Seletores";
 import { SeloStatus } from "./StatusOS";
 import { Aviso, Botao, Cartao } from "./ui";
+import { useConfirmar } from "./Confirmacao";
 
 // Tela de edicao do cliente: historico de OS + maquinas cadastradas.
 // A OS nao exige maquina (a maioria dos servicos envolve varias), entao o
 // historico e do cliente; as maquinas ficam como cadastro de referencia.
 export function MaquinasCliente({ clienteId }: { clienteId: number }) {
+  const confirmar = useConfirmar();
   const [maquinas, setMaquinas] = useState<Equipamento[]>([]);
   const [ordens, setOrdens] = useState<OSResumo[]>([]);
   const [adicionando, setAdicionando] = useState(false);
@@ -29,7 +31,7 @@ export function MaquinasCliente({ clienteId }: { clienteId: number }) {
   }, [clienteId]);
 
   async function excluir(m: Equipamento) {
-    if (!confirm(`Excluir a máquina ${m.marca} ${m.modelo}?`)) return;
+    if (!(await confirmar({ titulo: "Excluir máquina?", mensagem: `${m.marca} ${m.modelo} será removida deste cliente.`, confirmar: "Excluir", perigo: true }))) return;
     setErro("");
     try {
       await api(`/equipamentos/${m.id}`, "DELETE");

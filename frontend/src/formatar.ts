@@ -43,6 +43,15 @@ export function formatarDataHora(valor: string | null) {
   return new Date(valor).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
+// Visita: mostra o horario so quando foi informado (meia-noite = sem horario)
+export function formatarVisita(valor: string | null) {
+  if (!valor) return "";
+  const d = new Date(valor);
+  return d.getHours() === 0 && d.getMinutes() === 0
+    ? d.toLocaleDateString("pt-BR", { dateStyle: "short" })
+    : formatarDataHora(valor);
+}
+
 // Data pura "2026-10-20" (sem fuso horario, para nao "voltar" um dia)
 export function formatarDataSimples(valor: string | null) {
   if (!valor) return "";
@@ -108,8 +117,11 @@ export function paraCampoValor(valor: string | number) {
 
 // "2026-10-25T15:01" (campo datetime-local) -> ISO com fuso (o servidor na
 // nuvem roda em UTC; sem o fuso, a hora seria gravada errada)
+// Aceita data e hora ("2026-10-20T14:30") ou so a data ("2026-10-20", horario
+// nao informado: vira meia-noite no horario local)
 export function dataHoraParaISO(valor: string) {
-  return valor ? new Date(valor).toISOString() : null;
+  if (!valor) return null;
+  return new Date(valor.length === 10 ? `${valor}T00:00` : valor).toISOString();
 }
 
 export function dataLocalISO(d = new Date()) {

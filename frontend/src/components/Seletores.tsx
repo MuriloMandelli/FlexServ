@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import type { FocusEvent, KeyboardEvent, ReactNode } from "react";
 import { api, mensagemDeErro } from "../api";
-import { formatarCpfCnpj, formatarMoeda, ROTULO_TIPO_ITEM } from "../formatar";
+import { formatarCpfCnpj, formatarMoeda, formatarTelefone, ROTULO_TIPO_ITEM } from "../formatar";
 import type { Cliente, Equipamento, Item, TipoEquipamento } from "../types";
 import { Aviso, Botao, Campo, CampoSelecao } from "./ui";
 
@@ -20,35 +21,76 @@ function useBusca<T>(caminho: string, termo: string, ativo = true) {
   return resultado;
 }
 
+// "Gaveta" da busca: fica fechada e abre (com animacao) quando a pessoa toca
+// no campo. Mostra ate 3 resultados por vez (o resto rola), porque no uso
+// normal a pessoa digita o nome e escolhe entre poucos resultados.
+function useGaveta() {
+  const [aberto, setAberto] = useState(false);
+  return {
+    aberto,
+    fechar: () => setAberto(false),
+    // Fecha quando o foco sai da busca e da lista (clique fora)
+    props: {
+      onFocus: () => setAberto(true),
+      onBlur: (e: FocusEvent<HTMLDivElement>) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setAberto(false);
+      },
+      onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === "Escape") setAberto(false);
+      },
+    },
+  };
+}
+
+function Gaveta({ aberto, children }: { aberto: boolean; children: ReactNode }) {
+  return (
+    <div
+      className={`grid transition-all duration-200 ease-out ${
+        aberto ? "grid-rows-[1fr] opacity-100" : "pointer-events-none -mt-2 grid-rows-[0fr] opacity-0"
+      }`}
+      aria-hidden={!aberto}
+    >
+      <div className="flex min-h-0 flex-col gap-2 overflow-hidden">{children}</div>
+    </div>
+  );
+}
+
+// Altura de ~3 resultados
+const listaGaveta = "max-h-[11.5rem] overflow-y-auto rounded-xl border border-borda";
+
 const estiloBusca =
   "min-h-11 w-full rounded-xl border border-borda bg-fundo px-3 text-base outline-none placeholder:text-suave/60 focus:border-primaria";
 
 // ---- Cliente: busca por nome/CPF e permite cadastrar na hora ----
-export function SeletorCliente({ aoEscolher }: { aoEscolher: (c: Cliente) => void }) {
+export function SeletorCliente({
+  aoEscolher,
+  focoInicial = true,
+}: {
+  aoEscolher: (c: Cliente) => void;
+  focoInicial?: boolean;
+}) {
   const [termo, setTermo] = useState("");
-  const [erro, setErro] = useState("");
+  const [cadastrando, setCadastrando] = useState(false);
   const clientes = useBusca<Cliente>("/clientes", termo);
+  const gaveta = useGaveta();
 
-  async function cadastrarRapido() {
-    setErro("");
-    try {
-      aoEscolher(await api<Cliente>("/clientes", "POST", { nome: termo }));
-    } catch (err) {
-      setErro(mensagemDeErro(err));
-    }
+  // Cliente novo: cadastra aqui mesmo, sem sair da OS ou da venda
+  if (cadastrando) {
+    return <FormClienteRapido nomeInicial={termo.trim()} aoSalvar={aoEscolher} aoCancelar={() => setCadastrando(false)} />;
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" {...gaveta.props}>
       <input
         type="search"
-        autoFocus
+        autoFocus={focoInicial}
         value={termo}
         onChange={(e) => setTermo(e.target.value)}
         placeholder="Nome, CPF/CNPJ ou telefone"
         className={estiloBusca}
       />
-      <ul className="max-h-64 overflow-y-auto rounded-xl border border-borda">
+      <Gaveta aberto={gaveta.aberto}>
+      <ul className={listaGaveta}>
         {clientes.slice(0, 30).map((c) => (
           <li key={c.id}>
             <button
@@ -65,37 +107,108 @@ export function SeletorCliente({ aoEscolher }: { aoEscolher: (c: Cliente) => voi
         ))}
         {clientes.length === 0 && <li className="px-3 py-3 text-sm text-suave">Nenhum cliente encontrado.</li>}
       </ul>
-      {termo.trim().length >= 3 && (
-        <Botao type="button" variante="secundario" onClick={cadastrarRapido}>
-          + Cadastrar "{termo.trim()}" como novo cliente
-        </Botao>
+      <Botao type="button" variante="secundario" onClick={() => setCadastrando(true)}>
+        + Cadastrar novo cliente
+      </Botao>
+      </Gaveta>
+    </div>
+  );
+}
+
+// ---- Cliente novo direto da OS/venda (sem <form>: fica dentro de outro formulario) ----
+function FormClienteRapido({
+  nomeInicial,
+  aoSalvar,
+  aoCancelar,
+}: {
+  nomeInicial: string;
+  aoSalvar: (c: Cliente) => void;
+  aoCancelar: () => void;
+}) {
+  const [dados, setDados] = useState({ nome: nomeInicial, cpfCnpj: "", telefone: "", endereco: "", cidade: "" });
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const alterar = (campo: keyof typeof dados, valor: string) => setDados({ ...dados, [campo]: valor });
+
+  async function salvar() {
+    setErro("");
+    setSalvando(true);
+    try {
+      aoSalvar(await api<Cliente>("/clientes", "POST", dados));
+    } catch (err) {
+      setErro(mensagemDeErro(err));
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-3 rounded-xl border border-borda bg-fundo/50 p-3 sm:grid-cols-2">
+      <p className="font-semibold sm:col-span-2">Novo cliente</p>
+      <Campo rotulo="Nome *" className="sm:col-span-2" value={dados.nome} onChange={(e) => alterar("nome", e.target.value)} autoFocus />
+      <Campo rotulo="CPF/CNPJ" inputMode="numeric" value={dados.cpfCnpj} onChange={(e) => alterar("cpfCnpj", e.target.value)} />
+      <Campo
+        rotulo="Telefone"
+        type="tel"
+        inputMode="tel"
+        value={dados.telefone}
+        onChange={(e) => alterar("telefone", formatarTelefone(e.target.value))}
+        placeholder="(48) 99999-0000"
+      />
+      <Campo rotulo="Endereço" value={dados.endereco} onChange={(e) => alterar("endereco", e.target.value)} placeholder="Rua, número, bairro" />
+      <Campo rotulo="Cidade" value={dados.cidade} onChange={(e) => alterar("cidade", e.target.value)} />
+      {erro && (
+        <div className="sm:col-span-2">
+          <Aviso>{erro}</Aviso>
+        </div>
       )}
-      {erro && <Aviso>{erro}</Aviso>}
+      <div className="flex gap-2 sm:col-span-2 sm:justify-end">
+        <Botao type="button" variante="secundario" onClick={aoCancelar} className="flex-1 sm:flex-none">
+          Cancelar
+        </Botao>
+        <Botao type="button" onClick={salvar} disabled={salvando || !dados.nome.trim()} className="flex-1 sm:flex-none">
+          {salvando ? "Salvando..." : "Salvar cliente"}
+        </Botao>
+      </div>
     </div>
   );
 }
 
 // ---- Item: busca pecas e mao de obra para adicionar na OS ----
-export function SeletorItem({ aoEscolher }: { aoEscolher: (i: Item) => void }) {
+export function SeletorItem({
+  aoEscolher,
+  focoInicial = true,
+}: {
+  aoEscolher: (i: Item) => void;
+  focoInicial?: boolean;
+}) {
   const [termo, setTermo] = useState("");
   const itens = useBusca<Item>("/itens", termo);
+  const gaveta = useGaveta();
+
+  // Escolheu: recolhe a gaveta e limpa a busca para o proximo item
+  function escolher(i: Item) {
+    aoEscolher(i);
+    setTermo("");
+    gaveta.fechar();
+  }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" {...gaveta.props}>
       <input
         type="search"
-        autoFocus
+        autoFocus={focoInicial}
         value={termo}
         onChange={(e) => setTermo(e.target.value)}
         placeholder="Buscar item"
         className={estiloBusca}
       />
-      <ul className="max-h-72 overflow-y-auto rounded-xl border border-borda">
+      <Gaveta aberto={gaveta.aberto}>
+      <ul className={listaGaveta}>
         {itens.map((i) => (
           <li key={i.id}>
             <button
               type="button"
-              onClick={() => aoEscolher(i)}
+              onClick={() => escolher(i)}
               className="flex min-h-12 w-full items-center justify-between gap-3 border-b border-borda px-3 py-2 text-left last:border-0 hover:bg-superficie-2"
             >
               <span className="min-w-0">
@@ -110,6 +223,7 @@ export function SeletorItem({ aoEscolher }: { aoEscolher: (i: Item) => void }) {
         ))}
         {itens.length === 0 && <li className="px-3 py-3 text-sm text-suave">Nenhum item encontrado.</li>}
       </ul>
+      </Gaveta>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { createBrowserRouter, createRoutesFromElements, Navigate, Route, RouterProvider } from "react-router-dom";
 import { AuthProvider, RotaProtegida } from "./auth";
+import { ConfirmacaoProvider } from "./components/Confirmacao";
 import { Layout } from "./components/Layout";
 import Login from "./pages/Login";
 import Menu from "./pages/Menu";
@@ -75,7 +76,9 @@ const roteador = createBrowserRouter(
 export default function App() {
   return (
     <AuthProvider>
-      <RouterProvider router={roteador} />
+      <ConfirmacaoProvider>
+        <RouterProvider router={roteador} />
+      </ConfirmacaoProvider>
     </AuthProvider>
   );
 }

@@ -102,7 +102,7 @@ export default function NovaVenda() {
           >
             {escolhendoItem && (
               <div className="mb-3">
-                <SeletorItem aoEscolher={adicionar} />
+                <SeletorItem aoEscolher={adicionar} focoInicial={linhas.length > 0} />
                 {linhas.length > 0 && (
                   <button type="button" className="mt-2 text-sm text-suave" onClick={() => setEscolhendoItem(false)}>
                     Fechar busca

@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, mensagemDeErro } from "../api";
 import { AreaTexto, Aviso, Botao, CabecalhoPagina, Carregando, Cartao } from "../components/ui";
+import { useConfirmar } from "../components/Confirmacao";
 
 type Termos = { texto: string; padrao: string };
 
 // Gestor edita o texto que cliente e tecnico aceitam ao aprovar uma OS
 export default function TermosAprovacao() {
+  const confirmar = useConfirmar();
   const [termos, setTermos] = useState<Termos | null>(null);
   const [texto, setTexto] = useState("");
   const [erro, setErro] = useState("");
@@ -61,7 +63,10 @@ export default function TermosAprovacao() {
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
             <Botao
               variante="fantasma"
-              onClick={() => confirm("Voltar ao texto padrão? (só é salvo ao clicar em Salvar)") && setTexto(termos.padrao)}
+              onClick={async () => {
+                if (await confirmar({ titulo: "Voltar ao texto padrão?", mensagem: "Só é salvo quando você clicar em Salvar.", confirmar: "Restaurar" }))
+                  setTexto(termos.padrao);
+              }}
             >
               Restaurar texto padrão
             </Botao>

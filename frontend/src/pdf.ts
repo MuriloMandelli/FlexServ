@@ -4,6 +4,7 @@ import {
   formatarCpfCnpj,
   formatarData,
   formatarDataHora,
+  formatarVisita,
   formatarDataSimples,
   formatarMoeda,
   ROTULO_ATENDIMENTO,
@@ -188,7 +189,7 @@ export async function gerarPdfOS(os: OSDetalhe) {
     ...(os.tipoAtendimento === "campo"
       ? ([
           ["Local", os.enderecoAtendimento ?? "-"],
-          ["Visita", os.dataVisita ? formatarDataHora(os.dataVisita) : "-"],
+          ["Visita", os.dataVisita ? formatarVisita(os.dataVisita) : "-"],
         ] as [string, string][])
       : []),
     ...(os.previsaoEntrega ? [["Previsão de entrega", formatarDataSimples(os.previsaoEntrega)] as [string, string]] : []),

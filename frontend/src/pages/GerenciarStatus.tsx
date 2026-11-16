@@ -6,6 +6,7 @@ import type { CorStatus, Fase, StatusOS } from "../types";
 import { SeloStatus } from "../components/StatusOS";
 import { Icone } from "../components/Icones";
 import { Aviso, Botao, CabecalhoPagina, Campo, CampoSelecao, Carregando, Cartao, Modal } from "../components/ui";
+import { useConfirmar } from "../components/Confirmacao";
 
 const FASES = Object.keys(ROTULO_FASE) as Fase[];
 const CORES = Object.keys(CORES_STATUS) as CorStatus[];
@@ -22,6 +23,7 @@ type Formulario = { nome: string; cor: CorStatus; fase: Fase; ordem: number; pad
 const VAZIO: Formulario = { nome: "", cor: "azul", fase: "execucao", ordem: 10, padrao: false, ativo: true };
 
 export default function GerenciarStatus() {
+  const confirmar = useConfirmar();
   const [lista, setLista] = useState<StatusOS[] | null>(null);
   const [erro, setErro] = useState("");
   const [editando, setEditando] = useState<StatusOS | "novo" | null>(null);
@@ -65,7 +67,7 @@ export default function GerenciarStatus() {
 
   async function excluir() {
     if (!editando || editando === "novo") return;
-    if (!confirm(`Excluir o status "${editando.nome}"?`)) return;
+    if (!(await confirmar({ titulo: "Excluir status?", mensagem: `"${editando.nome}" deixa de existir.`, confirmar: "Excluir", perigo: true }))) return;
     try {
       await api(`/status/${editando.id}`, "DELETE");
       setEditando(null);
