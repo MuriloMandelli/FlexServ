@@ -13,6 +13,20 @@ export type Papel = "cliente" | "tecnico";
 
 export const CHAVE_TERMOS = "termos_aprovacao";
 
+// Os links de aprovacao valem pelo mesmo prazo da validade do orcamento (termos)
+export const VALIDADE_LINK_DIAS = 7;
+
+export function validadeDoLink(enviadaEm: Date | null) {
+  return enviadaEm ? new Date(enviadaEm.getTime() + VALIDADE_LINK_DIAS * 24 * 60 * 60 * 1000) : null;
+}
+
+// Expirado: passou da validade e a OS ainda nao foi aprovada
+export function linkExpirado(os: { aprovacaoEnviadaEm: Date | null; aprovadoEm?: Date | null; aprovada?: boolean }) {
+  const aprovada = os.aprovada ?? os.aprovadoEm != null;
+  const validade = validadeDoLink(os.aprovacaoEnviadaEm);
+  return !aprovada && validade !== null && validade.getTime() < Date.now();
+}
+
 // Texto inicial. O gestor revisa e ajusta na tela "Termos de aprovacao".
 export const TERMOS_PADRAO = `1. Orçamento: o serviço será executado conforme os itens e valores desta ordem de serviço. Qualquer peça ou serviço adicional será informado antes e só será feito com nova autorização.
 
@@ -48,9 +62,27 @@ export async function prepararAprovacao(executor: Executor, os: {
   if (!os.termosAprovacao) alteracoes.termosAprovacao = await lerTermos(executor);
   if (!os.tokenCliente) alteracoes.tokenCliente = gerarToken();
   if (!os.tokenTecnico) alteracoes.tokenTecnico = gerarToken();
+  // Primeiro envio: comeca a contar a validade dos links
+  if (!os.tokenCliente) alteracoes.aprovacaoEnviadaEm = new Date();
   if (Object.keys(alteracoes).length) {
     await executor.update(servico).set(alteracoes).where(eq(servico.id, os.id));
   }
+}
+
+// Links expirados: gera links novos (por mais 7 dias) so para quem ainda nao
+// assinou. Os links antigos param de funcionar; quem ja assinou continua assinado.
+export async function renovarLinks(
+  executor: Executor,
+  os: { id: number; aceiteClienteEm: Date | null; aceiteTecnicoEm: Date | null }
+) {
+  await executor
+    .update(servico)
+    .set({
+      aprovacaoEnviadaEm: new Date(),
+      ...(os.aceiteClienteEm ? {} : { tokenCliente: gerarToken() }),
+      ...(os.aceiteTecnicoEm ? {} : { tokenTecnico: gerarToken() }),
+    })
+    .where(eq(servico.id, os.id));
 }
 
 export type DadosAceite = { nome: string; ip: string | null; dispositivo: string | null; meio?: "sistema" | "link" };

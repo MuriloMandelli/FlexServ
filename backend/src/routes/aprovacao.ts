@@ -6,7 +6,7 @@ import { db } from "../db";
 import { cliente, item, servico, servicoItem, statusOs, vendedor } from "../db/schema";
 import { dispositivoDaRequisicao, ipDaRequisicao, responderErro } from "../utils/http";
 import { textoObrigatorio } from "../utils/validacao";
-import { registrarAceite } from "../services/aprovacao";
+import { linkExpirado, registrarAceite, VALIDADE_LINK_DIAS } from "../services/aprovacao";
 import type { Papel } from "../services/aprovacao";
 
 // Pagina PUBLICA de aprovacao da OS (sem login). Quem tem o link (enviado
@@ -18,6 +18,7 @@ const router = Router();
 const tecnico = alias(vendedor, "tecnico");
 
 const LINK_INVALIDO = "Este link não é mais válido. Peça um novo link à TecFlex.";
+const LINK_EXPIRADO = `Este link expirou (vale ${VALIDADE_LINK_DIAS} dias). Peça um novo link à TecFlex.`;
 
 const aceiteSchema = z.object({
   nome: textoObrigatorio("Seu nome", 120),
@@ -33,6 +34,8 @@ async function buscarPorToken(token: string) {
       id: servico.id,
       fase: statusOs.fase,
       tokenCliente: servico.tokenCliente,
+      aprovacaoEnviadaEm: servico.aprovacaoEnviadaEm,
+      aprovadoEm: servico.aprovadoEm,
       dataAbertura: servico.dataAbertura,
       tipoAtendimento: servico.tipoAtendimento,
       descricaoServico: servico.descricaoServico,
@@ -103,7 +106,8 @@ router.get("/publico/aprovacao/:token", async (req, res) => {
       nomeSugerido: os.papel === "cliente" ? os.clienteNome : os.tecnicoNome,
       termos: os.termos,
       aceite: aceite || null,
-      podeAssinar: !aceite && os.fase === "aberta",
+      expirado: !aceite && linkExpirado(os),
+      podeAssinar: !aceite && os.fase === "aberta" && !linkExpirado(os),
     });
   } catch (err) {
     responderErro(res, err);
@@ -120,6 +124,7 @@ router.post("/publico/aprovacao/:token", async (req, res) => {
     const jaAceitou = os.papel === "cliente" ? os.aceiteClienteEm : os.aceiteTecnicoEm;
     if (jaAceitou) return res.status(409).json({ erro: "Esta OS já foi assinada por este link." });
     if (os.fase !== "aberta") return res.status(409).json({ erro: LINK_INVALIDO });
+    if (linkExpirado(os)) return res.status(410).json({ erro: LINK_EXPIRADO });
 
     await registrarAceite(db, os.id, os.papel, {
       nome: dados.nome,

@@ -149,6 +149,8 @@ export const servico = pgTable("servico", {
   // tocam em "Assinar" (pelo link do WhatsApp ou, o tecnico, no sistema).
   // Cada aceite guarda nome, data/hora, IP e aparelho como comprovante.
   termosAprovacao: text("termos_aprovacao"), // copia dos termos no momento do envio
+  // Quando os links foram enviados: eles valem por 7 dias (validade do orcamento)
+  aprovacaoEnviadaEm: timestamp("aprovacao_enviada_em"),
   tokenCliente: varchar("token_cliente", { length: 64 }).unique(),
   tokenTecnico: varchar("token_tecnico", { length: 64 }).unique(),
   aceiteClienteEm: timestamp("aceite_cliente_em"),

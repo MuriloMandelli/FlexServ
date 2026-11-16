@@ -13,7 +13,7 @@ import {
   statusOs,
   vendedor,
 } from "../db/schema";
-import { autenticar } from "../middleware/auth";
+import { apenasGestor, autenticar } from "../middleware/auth";
 import { dispositivoDaRequisicao, ipDaRequisicao, lerId, responderErro } from "../utils/http";
 import { filtroBusca } from "../utils/busca";
 import {
@@ -33,7 +33,7 @@ import {
   validarTrocaDeFase,
 } from "../services/os";
 import type { Fase } from "../services/os";
-import { prepararAprovacao, registrarAceite } from "../services/aprovacao";
+import { linkExpirado, prepararAprovacao, registrarAceite, renovarLinks, validadeDoLink } from "../services/aprovacao";
 
 // Ordens de Servico (tabela "servico")
 
@@ -213,6 +213,10 @@ async function carregarOS(id: number) {
     avisos,
     // Ajuda o front a saber o que mostrar
     aprovada: os.os.aprovadoEm !== null,
+    // Validade dos links de aprovacao (7 dias a partir do envio)
+    linksValidosAte: validadeDoLink(os.os.aprovacaoEnviadaEm),
+    linksExpirados: linkExpirado(os.os),
+    podeExcluir: podeExcluir({ fase, aprovada: os.os.aprovadoEm !== null }),
     // Depois de enviada para aprovacao, itens e atendimento ficam travados
     orcamentoEditavel: orcamentoEditavel({ fase, enviadaParaAprovacao: os.os.tokenCliente !== null || os.os.aprovadoEm !== null }),
     finalizada: faseFinal(fase),
@@ -419,6 +423,12 @@ router.put("/os/:id/pagamento", async (req, res) => {
     if (descontoMudou && faseFinal(situacao.fase)) {
       return res.status(409).json({ erro: "O desconto não pode ser alterado depois da entrega." });
     }
+    // Depois da aprovacao o total nao pode passar do valor que o cliente assinou
+    if (situacao.aprovada && Number(dados.desconto) < Number(situacao.desconto)) {
+      return res.status(400).json({
+        erro: "Depois da aprovação o desconto só pode aumentar: o total não pode passar do valor aprovado pelo cliente.",
+      });
+    }
     if (Number(dados.desconto) > Number(situacao.valorItens)) {
       return res.status(400).json({ erro: "O desconto não pode ser maior que o valor dos itens." });
     }
@@ -475,6 +485,7 @@ router.post("/os/:id/aprovacao/tecnico", async (req, res) => {
     const erro = podeAprovar(situacao);
     if (erro) return res.status(409).json({ erro });
     if (situacao.aceiteTecnico) return res.status(409).json({ erro: "O técnico já assinou esta OS." });
+    if (linkExpirado(situacao)) return res.status(409).json({ erro: "Os links expiraram. Gere novos links antes de assinar." });
     if ((situacao.tecnicoId ?? situacao.vendedorId) !== req.usuario!.id) {
       return res.status(403).json({ erro: "Só o técnico responsável pode assinar por aqui. Envie o link para ele." });
     }
@@ -490,6 +501,50 @@ router.post("/os/:id/aprovacao/tecnico", async (req, res) => {
       });
     });
     res.json(await carregarOS(id));
+  } catch (err) {
+    responderErro(res, err);
+  }
+});
+
+// POST /os/:id/aprovacao/renovar -> links expirados: gera novos (mais 7 dias)
+router.post("/os/:id/aprovacao/renovar", async (req, res) => {
+  const id = lerId(req.params.id);
+  if (!id) return res.status(400).json({ erro: "Id inválido." });
+
+  try {
+    const situacao = await buscarSituacao(id);
+    if (!situacao) return res.status(404).json({ erro: "OS não encontrada." });
+    if (situacao.fase !== "aberta" || situacao.aprovada || !situacao.tokenCliente) {
+      return res.status(409).json({ erro: "Esta OS não está aguardando assinaturas." });
+    }
+    if (!linkExpirado(situacao)) return res.status(409).json({ erro: "Os links ainda estão válidos." });
+
+    await renovarLinks(db, { id, ...situacao });
+    res.json(await carregarOS(id));
+  } catch (err) {
+    responderErro(res, err);
+  }
+});
+
+// DELETE /os/:id -> so o gestor; so antes da aprovacao ou depois de finalizada
+// (concluida, entregue ou cancelada). OS aprovada em andamento nao pode sumir.
+router.delete("/os/:id", apenasGestor, async (req, res) => {
+  const id = lerId(req.params.id);
+  if (!id) return res.status(400).json({ erro: "Id inválido." });
+
+  try {
+    const situacao = await buscarSituacao(id);
+    if (!situacao) return res.status(404).json({ erro: "OS não encontrada." });
+    if (!podeExcluir(situacao)) {
+      return res.status(409).json({ erro: "Só é possível excluir uma OS antes da aprovação ou depois de concluída." });
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.delete(avisoCliente).where(eq(avisoCliente.servicoId, id));
+      await tx.delete(servicoItem).where(eq(servicoItem.servicoId, id));
+      await tx.delete(servico).where(eq(servico.id, id));
+    });
+    res.status(204).send();
   } catch (err) {
     responderErro(res, err);
   }
@@ -666,6 +721,11 @@ async function usuarioExiste(id: number) {
   return Boolean(u);
 }
 
+// Excluir: antes da aprovacao ou depois de concluida/entregue/cancelada
+function podeExcluir(s: { fase: Fase; aprovada: boolean }) {
+  return (s.fase === "aberta" && !s.aprovada) || s.fase === "concluida" || faseFinal(s.fase);
+}
+
 // Regras para pedir ou registrar a aprovacao
 function podeAprovar(s: { fase: Fase; aprovada: boolean; quantidadeItens: number; itensSemValor: number }) {
   if (s.fase !== "aberta") return "Só é possível aprovar uma OS que ainda não foi iniciada.";
@@ -683,6 +743,9 @@ async function buscarSituacao(id: number) {
       vendedorId: servico.vendedorId,
       tecnicoId: servico.tecnicoId,
       termosAprovacao: servico.termosAprovacao,
+      aprovacaoEnviadaEm: servico.aprovacaoEnviadaEm,
+      aceiteClienteEm: servico.aceiteClienteEm,
+      aceiteTecnicoEm: servico.aceiteTecnicoEm,
       tokenCliente: servico.tokenCliente,
       tokenTecnico: servico.tokenTecnico,
       aceiteTecnico: sql<boolean>`${servico.aceiteTecnicoEm} is not null`,
